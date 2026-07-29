@@ -21,8 +21,21 @@ export function initDatabase() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
 
+  migrate();
   seedDefaults();
   return db;
+}
+
+/** Migrações idempotentes para bancos criados antes de uma coluna existir.
+ *  ALTER TABLE ADD COLUMN não tem "IF NOT EXISTS", então checamos o schema. */
+function migrate() {
+  const cols = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+  if (!cols.includes('email')) db.exec('ALTER TABLE users ADD COLUMN email TEXT');
+  if (!cols.includes('password_hash')) db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT');
+  // Índice único do e-mail (caso o banco seja anterior à sua criação).
+  db.exec(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email) WHERE email IS NOT NULL'
+  );
 }
 
 export function getDb() {
@@ -61,7 +74,7 @@ function seedDefaults() {
   const upsertSetting = db.prepare(
     'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING'
   );
-  upsertSetting.run('server_name', 'Embarca Voip');
+  upsertSetting.run('server_name', 'Discord Lan');
 }
 
 export default { initDatabase, getDb };

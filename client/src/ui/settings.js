@@ -1,5 +1,8 @@
 import { voiceClient } from '../voice/voice-client.js';
 import { MicTest } from '../voice/mic-test.js';
+import { getState, setState } from '../state.js';
+import { request } from '../socket.js';
+import { clearToken } from './login.js';
 
 /**
  * Modal de configurações de voz: escolha do microfone (entrada) e da saída
@@ -24,6 +27,13 @@ export function initSettings() {
   const testBtn = document.getElementById('mic-test-btn');
   const meterFill = document.getElementById('mic-meter-fill');
   const monitorChk = document.getElementById('mic-monitor');
+
+  const profileName = document.getElementById('profile-name');
+  const profileSave = document.getElementById('profile-save');
+  const profileHint = document.getElementById('profile-hint');
+  const logoutBtn = document.getElementById('btn-logout');
+
+  initProfile();
 
   const canPickOutput =
     typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
@@ -99,8 +109,47 @@ export function initSettings() {
     if (!overlay.classList.contains('hidden')) refresh();
   });
 
+  // Perfil: editar o próprio nome e sair da conta.
+  function initProfile() {
+    async function save() {
+      const name = profileName.value.trim();
+      profileHint.textContent = '';
+      if (!name) {
+        profileHint.textContent = 'Digite um nome.';
+        return;
+      }
+      profileSave.disabled = true;
+      try {
+        const { name: saved } = await request('user:updateName', { name });
+        setState({ me: { ...getState().me, name: saved } });
+        document.getElementById('self-name').textContent = saved;
+        profileName.value = saved;
+        profileHint.textContent = 'Nome atualizado ✓';
+      } catch (err) {
+        profileHint.textContent = err.message;
+      } finally {
+        profileSave.disabled = false;
+      }
+    }
+
+    profileSave.addEventListener('click', save);
+    profileName.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        save();
+      }
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      clearToken();
+      location.reload();
+    });
+  }
+
   async function open() {
     hint.textContent = '';
+    profileHint.textContent = '';
+    profileName.value = getState().me?.name || '';
     await ensureLabels(hint);
     await refresh();
     overlay.classList.remove('hidden');

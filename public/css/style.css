@@ -78,7 +78,9 @@ textarea, input { font-family: inherit; }
   color: var(--accent);
   cursor: pointer;
 }
-.login-card input[type="text"] {
+.login-card input[type="text"],
+.login-card input[type="email"],
+.login-card input[type="password"] {
   width: 100%;
   padding: 12px;
   border-radius: var(--radius);
@@ -87,7 +89,7 @@ textarea, input { font-family: inherit; }
   color: var(--text);
   font-size: 15px;
 }
-.login-card input[type="text"]:focus { outline: 2px solid var(--accent); }
+.login-card input:focus { outline: 2px solid var(--accent); }
 #login-submit {
   width: 100%;
   padding: 12px;
@@ -101,31 +103,39 @@ textarea, input { font-family: inherit; }
 #login-submit:disabled { opacity: 0.6; cursor: default; }
 .login-error { color: var(--red); font-size: 13px; min-height: 16px; }
 
-/* ---------- Layout principal ---------- */
-#app { display: flex; height: 100vh; }
-
-/* Coluna 0: rail de servidores */
-#server-rail {
-  width: 72px;
+/* Abas Entrar / Criar conta */
+.auth-tabs {
+  display: flex;
+  width: 100%;
   background: var(--bg-darkest);
+  border-radius: var(--radius);
+  padding: 4px;
+  gap: 4px;
+}
+.auth-tab {
+  flex: 1;
+  padding: 9px;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
+}
+.auth-tab.active { background: var(--accent); color: #fff; }
+
+/* Campos exclusivos do cadastro */
+.register-only {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 12px;
-  gap: 8px;
+  gap: 14px;
+  width: 100%;
 }
-.server-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--bg-dark);
-  display: grid;
-  place-items: center;
-  font-size: 22px;
-  cursor: pointer;
-  transition: border-radius 0.15s, background 0.15s;
-}
-.server-icon.active, .server-icon:hover { border-radius: 30%; background: var(--accent); }
+
+.login-loading { color: var(--text-muted); font-size: 15px; }
+
+/* ---------- Layout principal ---------- */
+#app { display: flex; height: 100vh; }
 
 /* Coluna 1: sidebar de canais */
 #sidebar {
@@ -438,7 +448,31 @@ textarea, input { font-family: inherit; }
   font-weight: 400;
 }
 .settings-field select:focus { outline: 2px solid var(--accent); }
+.settings-field input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--bg-darkest);
+  border: 1px solid #1a1b1e;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 400;
+}
+.settings-field input[type="text"]:focus { outline: 2px solid var(--accent); }
+.name-edit-row { display: flex; align-items: center; gap: 10px; }
 .settings-hint { color: var(--text-muted); font-size: 12px; min-height: 14px; }
+.btn-logout {
+  padding: 10px;
+  border-radius: var(--radius);
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+  font-weight: 600;
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-logout:hover { background: var(--red); color: #fff; }
 
 /* Teste de microfone */
 .mic-test-row { display: flex; align-items: center; gap: 10px; }
@@ -507,7 +541,6 @@ textarea, input { font-family: inherit; }
   #members { display: none; }
 }
 @media (max-width: 640px) {
-  #server-rail { width: 56px; }
   #sidebar { width: 180px; }
   .attachment-image { max-width: 70vw; }
 }

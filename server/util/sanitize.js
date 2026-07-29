@@ -28,6 +28,13 @@ export function cleanChannelName(value) {
   return name.length >= 1 ? name : null;
 }
 
+/** Normaliza e valida um e-mail (formato simples, minúsculo). Retorna null se inválido. */
+export function cleanEmail(value) {
+  if (typeof value !== 'string') return null;
+  const email = value.trim().toLowerCase().slice(0, 254);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
 /** Avatar deve ser uma URL relativa a /uploads ou um emoji curto. */
 export function cleanAvatar(value) {
   if (typeof value !== 'string') return null;

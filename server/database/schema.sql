@@ -4,13 +4,17 @@ PRAGMA journal_mode = WAL;      -- melhor concorrência leitura/escrita
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
-  id         TEXT PRIMARY KEY,
-  name       TEXT NOT NULL,
-  avatar     TEXT,
-  is_admin   INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL,
-  last_seen  INTEGER NOT NULL
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  email         TEXT,
+  password_hash TEXT,
+  avatar        TEXT,
+  is_admin      INTEGER NOT NULL DEFAULT 0,
+  created_at    INTEGER NOT NULL,
+  last_seen     INTEGER NOT NULL
 );
+-- Nota: o índice único de e-mail é criado em migrate() (database/index.js),
+-- pois em bancos antigos a coluna `email` só existe após o ALTER TABLE.
 
 -- Canais de texto.
 CREATE TABLE IF NOT EXISTS channels (

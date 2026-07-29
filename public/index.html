@@ -12,19 +12,32 @@
     />
   </head>
   <body>
-    <!-- Tela de login -->
+    <!-- Tela de login / cadastro -->
     <div id="login-overlay">
+      <div id="login-loading" class="login-loading hidden">Reconectando…</div>
+
       <form id="login-form" class="login-card" autocomplete="off">
-        <h1>🎙️ LAN Voice Chat</h1>
+        <h1>🎙️ Discord Lan</h1>
         <p class="login-sub">Entre para conversar na rede local.</p>
 
-        <div id="login-avatar-preview" class="avatar avatar-lg">🙂</div>
-        <label class="avatar-upload">
-          Escolher avatar (opcional)
-          <input id="login-avatar" type="file" accept="image/*" hidden />
-        </label>
+        <div id="auth-tabs" class="auth-tabs">
+          <button type="button" id="tab-login" class="auth-tab active">Entrar</button>
+          <button type="button" id="tab-register" class="auth-tab">Criar conta</button>
+        </div>
 
-        <input id="login-name" type="text" maxlength="32" placeholder="Seu nome" required />
+        <!-- Campos exclusivos do cadastro -->
+        <div id="register-only" class="register-only hidden">
+          <div id="login-avatar-preview" class="avatar avatar-lg">🙂</div>
+          <label class="avatar-upload">
+            Escolher avatar (opcional)
+            <input id="login-avatar" type="file" accept="image/*" hidden />
+          </label>
+          <input id="field-name" type="text" maxlength="32" placeholder="Seu nome" autocomplete="off" />
+        </div>
+
+        <input id="field-email" type="email" maxlength="254" placeholder="E-mail" autocomplete="username" required />
+        <input id="field-password" type="password" minlength="6" placeholder="Senha" autocomplete="current-password" required />
+
         <button id="login-submit" type="submit">Entrar</button>
         <div id="login-error" class="login-error"></div>
       </form>
@@ -32,11 +45,6 @@
 
     <!-- Aplicação (3 colunas) -->
     <div id="app" class="hidden">
-      <!-- Coluna 0: rail de servidores -->
-      <nav id="server-rail">
-        <div class="server-icon active" title="Embarca Voip">🎙️</div>
-      </nav>
-
       <!-- Coluna 1: canais + painel do usuário -->
       <aside id="sidebar">
         <header class="sidebar-header"><span id="server-name">Embarca Voip</span></header>
@@ -97,10 +105,19 @@
 
     <!-- Modal de configurações de áudio -->
     <div id="settings-overlay" class="modal-overlay hidden">
-      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Configurações de áudio">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Configurações">
         <div class="modal-head">
-          <h2>Configurações de áudio</h2>
+          <h2>Configurações</h2>
           <button id="settings-close" class="icon-btn" title="Fechar">×</button>
+        </div>
+
+        <div class="settings-field">
+          <span>👤 Seu nome</span>
+          <div class="name-edit-row">
+            <input id="profile-name" type="text" maxlength="32" placeholder="Seu nome" />
+            <button id="profile-save" type="button" class="btn-secondary">Salvar</button>
+          </div>
+          <div id="profile-hint" class="settings-hint"></div>
         </div>
 
         <label class="settings-field">
@@ -126,6 +143,8 @@
         </div>
 
         <div id="settings-hint" class="settings-hint"></div>
+
+        <button id="btn-logout" type="button" class="btn-logout">Sair da conta</button>
       </div>
     </div>
 
