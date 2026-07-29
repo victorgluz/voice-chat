@@ -57,7 +57,9 @@ function registerSocketEvents() {
   socket.on('channels:update', (channels) => setState({ channels }));
   socket.on('soundboard:update', (sounds) => setState({ sounds }));
 
-  socket.on('soundboard:play', ({ sound, preview }) => voiceClient.playSound(sound.url, { preview }));
+  socket.on('soundboard:play', ({ sound, preview, playerId }) =>
+    voiceClient.playSound(sound.url, { preview, playerId })
+  );
   socket.on('soundboard:stop', () => voiceClient.stopSound());
 
   socket.on('chat:message', appendMessage);

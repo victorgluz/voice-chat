@@ -16,8 +16,11 @@ export class VoiceClient {
     this.outputDeviceId = localStorage.getItem('voice.outputDeviceId') || null;
 
     // Sons do soundboard tocando agora (podem ser vários ao mesmo tempo).
-    // Independentes da call, por isso ficam fora do reset().
+    // Cada item é { audioEl, peerId }. Independentes da call, por isso ficam
+    // fora do reset().
     this.soundboardAudios = new Set();
+    // Volume dos efeitos sonoros por pessoa (peerId=socketId) -> 0..1.
+    this.effectsVolumes = new Map();
 
     // Callbacks preenchidos pela UI.
     this.onSpeaking = () => {};
@@ -84,6 +87,8 @@ export class VoiceClient {
       /* servidor pode já ter limpado */
     }
     this._stopVad();
+    // Ao sair da call, os efeitos/sons param imediatamente para este usuário.
+    this.stopSound();
     if (this.micStream) this.micStream.getTracks().forEach((t) => t.stop());
     for (const { audioEl } of this.consumers.values()) audioEl.remove();
     [this.sendTransport, this.recvTransport].forEach((t) => t && t.close());
@@ -125,6 +130,23 @@ export class VoiceClient {
     }
   }
 
+  getPeerVolume(peerId) {
+    return this.volumes.get(peerId) ?? 1;
+  }
+
+  /** Volume dos efeitos sonoros (soundboard) de uma pessoa. Aplica ao vivo. */
+  setPeerEffectsVolume(peerId, volume) {
+    const v = Math.max(0, Math.min(1, volume));
+    this.effectsVolumes.set(peerId, v);
+    for (const { audioEl, peerId: id } of this.soundboardAudios) {
+      if (id === peerId) audioEl.volume = v;
+    }
+  }
+
+  getPeerEffectsVolume(peerId) {
+    return this.effectsVolumes.get(peerId) ?? 1;
+  }
+
   /**
    * Troca o microfone. Se houver call ativa, substitui a track do producer ao
    * vivo (sem reconectar). Fora de call, só guarda para o próximo join.
@@ -160,7 +182,7 @@ export class VoiceClient {
     for (const { audioEl } of this.consumers.values()) {
       audioEl.play().catch(() => {});
     }
-    for (const audioEl of this.soundboardAudios) audioEl.play().catch(() => {});
+    for (const { audioEl } of this.soundboardAudios) audioEl.play().catch(() => {});
     this.onAudioResumed();
   }
 
@@ -169,21 +191,25 @@ export class VoiceClient {
    * mesma saída de áudio (setSinkId) e o mesmo desbloqueio de autoplay dos
    * streams de voz. Chamado em todos os clientes via evento 'soundboard:play';
    * o servidor decide a audiência (canal de voz ou preview solo). Vários sons
-   * podem tocar ao mesmo tempo (não corta o anterior).
+   * podem tocar ao mesmo tempo (não corta o anterior). `playerId` (socketId de
+   * quem tocou) permite aplicar o volume de efeitos por pessoa.
    */
-  playSound(url, { preview = false } = {}) {
+  playSound(url, { preview = false, playerId = null } = {}) {
     // Ensurdecido não ouve broadcast do canal; o preview solo sempre toca.
     if (this.deaf && !preview) return;
 
     const audioEl = document.createElement('audio');
     audioEl.autoplay = true;
     audioEl.src = url;
+    audioEl.volume = this.getPeerEffectsVolume(playerId);
     document.getElementById('audio-sink').append(audioEl);
-    this.soundboardAudios.add(audioEl);
+
+    const entry = { audioEl, peerId: playerId };
+    this.soundboardAudios.add(entry);
     this._soundboardChanged();
 
     const cleanup = () => {
-      if (this.soundboardAudios.delete(audioEl)) this._soundboardChanged();
+      if (this.soundboardAudios.delete(entry)) this._soundboardChanged();
       audioEl.remove();
     };
     audioEl.addEventListener('ended', cleanup);
@@ -196,7 +222,7 @@ export class VoiceClient {
   /** Para TODOS os sons do soundboard que estiverem tocando. */
   stopSound() {
     if (!this.soundboardAudios.size) return;
-    for (const audioEl of this.soundboardAudios) {
+    for (const { audioEl } of this.soundboardAudios) {
       try {
         audioEl.pause();
       } catch {

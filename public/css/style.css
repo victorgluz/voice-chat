@@ -626,6 +626,32 @@ textarea, input { font-family: inherit; }
 }
 .sound-trim-controls { display: flex; align-items: center; gap: 12px; }
 
+/* ---------- Menu de volume (botão direito no usuário) ---------- */
+.volume-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 210px;
+  background: var(--bg-mid);
+  border: 1px solid var(--bg-darkest);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.volume-menu-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-bright);
+  margin-bottom: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.volume-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+.volume-label { width: 52px; flex-shrink: 0; }
+.volume-slider { flex: 1; accent-color: var(--accent); }
+.volume-val { width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+
 /* Scrollbars */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--bg-darkest); border-radius: 4px; }

@@ -2,6 +2,7 @@ import { getState, presenceInVoice } from '../state.js';
 import { request } from '../socket.js';
 import { el, clear, initials } from '../util/dom.js';
 import { icon } from '../util/icons.js';
+import { openUserVolumeMenu } from './user-volume-menu.js';
 
 /** Renderiza a lista de canais de texto e voz no sidebar central. */
 export function renderChannels({ onSelectText, onJoinVoice }) {
@@ -58,11 +59,18 @@ export function renderChannels({ onSelectText, onJoinVoice }) {
       'div',
       { class: 'voice-members' },
       members.map((p) =>
-        el('div', { class: `voice-member${p.voice.speaking ? ' speaking' : ''}` }, [
-          avatar(p.user),
-          el('span', { class: 'voice-member-name' }, p.user.name),
-          p.voice.muted ? el('span', { class: 'mini-icon', title: 'Mutado' }, icon('micOff')) : null,
-        ])
+        el(
+          'div',
+          {
+            class: `voice-member${p.voice.speaking ? ' speaking' : ''}`,
+            onContextmenu: p.user.id === me?.id ? undefined : (e) => openUserVolumeMenu(e, p),
+          },
+          [
+            avatar(p.user),
+            el('span', { class: 'voice-member-name' }, p.user.name),
+            p.voice.muted ? el('span', { class: 'mini-icon', title: 'Mutado' }, icon('micOff')) : null,
+          ]
+        )
       )
     );
 

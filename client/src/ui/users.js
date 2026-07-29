@@ -2,6 +2,7 @@ import { getState } from '../state.js';
 import { request } from '../socket.js';
 import { el, clear, initials } from '../util/dom.js';
 import { icon } from '../util/icons.js';
+import { openUserVolumeMenu } from './user-volume-menu.js';
 
 /** Coluna direita: quem está online, status e canal de voz atual. */
 export function renderUsers() {
@@ -33,6 +34,8 @@ export function renderUsers() {
       p.voice.deaf ? el('span', { class: 'mini-icon', title: 'Ensurdecido' }, icon('headphones')) : null,
       me?.isAdmin && !isSelf ? adminMenu(p) : null,
     ]);
+    // Botão direito: ajustar volume de voz/efeitos dessa pessoa (menos você mesmo).
+    if (!isSelf) row.addEventListener('contextmenu', (e) => openUserVolumeMenu(e, p));
     container.append(row);
   }
 

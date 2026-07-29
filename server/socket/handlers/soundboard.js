@@ -100,11 +100,12 @@ export function registerSoundboardHandlers(io, socket) {
         io.to(roomName(channelId)).emit('soundboard:play', {
           sound,
           playedBy: presence.user.name,
+          playerId: socket.id, // socketId de quem tocou (p/ volume de efeitos por pessoa)
         });
         return { scope: 'voice' };
       }
       // Fora de um canal de voz: preview só para quem clicou.
-      socket.emit('soundboard:play', { sound, preview: true });
+      socket.emit('soundboard:play', { sound, preview: true, playerId: socket.id });
       return { scope: 'preview' };
     })(data)
   );
