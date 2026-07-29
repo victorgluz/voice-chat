@@ -1,6 +1,7 @@
 import { getState, presenceInVoice } from '../state.js';
 import { request } from '../socket.js';
 import { el, clear, initials } from '../util/dom.js';
+import { icon } from '../util/icons.js';
 
 /** Renderiza a lista de canais de texto e voz no sidebar central. */
 export function renderChannels({ onSelectText, onJoinVoice }) {
@@ -30,7 +31,7 @@ export function renderChannels({ onSelectText, onJoinVoice }) {
             class: 'icon-btn',
             title: `Criar canal de ${type === 'voice' ? 'voz' : 'texto'}`,
             onClick: () => createChannel(type),
-          }, '+')
+          }, icon('plus'))
         : null,
     ]);
     return el('div', { class: 'channel-section' }, [header, ...list.map(renderItem)]);
@@ -60,7 +61,7 @@ export function renderChannels({ onSelectText, onJoinVoice }) {
         el('div', { class: `voice-member${p.voice.speaking ? ' speaking' : ''}` }, [
           avatar(p.user),
           el('span', { class: 'voice-member-name' }, p.user.name),
-          p.voice.muted ? el('span', { class: 'mini-icon', title: 'Mutado' }, '🔇') : null,
+          p.voice.muted ? el('span', { class: 'mini-icon', title: 'Mutado' }, icon('micOff')) : null,
         ])
       )
     );
@@ -76,7 +77,7 @@ export function renderChannels({ onSelectText, onJoinVoice }) {
         e.stopPropagation();
         if (confirm('Apagar este canal?')) request('admin:deleteChannel', { type, id }).catch(alertErr);
       },
-    }, '×');
+    }, icon('close'));
   }
 
   function avatar(user) {

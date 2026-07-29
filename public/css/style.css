@@ -365,6 +365,14 @@ textarea, input { font-family: inherit; }
 .icon-btn.danger:hover { color: var(--red); }
 .icon-btn.send { color: var(--accent); }
 
+/* Ícones SVG (herdam a cor do elemento via stroke=currentColor). */
+.icon { width: 20px; height: 20px; display: block; }
+.icon-btn.send .icon { width: 19px; height: 19px; }
+.admin-actions .icon-btn .icon { width: 17px; height: 17px; }
+/* Ícone alinhado ao texto (rótulos, status). */
+.label-icon { width: 16px; height: 16px; vertical-align: -0.2em; }
+.inline-icon { width: 1em; height: 1em; vertical-align: -0.15em; display: inline-block; }
+
 /* Coluna 3: membros */
 #members {
   width: 240px;
@@ -399,7 +407,8 @@ textarea, input { font-family: inherit; }
   border-radius: 4px;
   letter-spacing: 0.03em;
 }
-.mini-icon { font-size: 13px; }
+.mini-icon { display: inline-flex; align-items: center; color: var(--text-muted); }
+.mini-icon .icon { width: 15px; height: 15px; }
 .admin-actions { display: none; gap: 2px; }
 .member:hover .admin-actions { display: flex; }
 
@@ -522,6 +531,9 @@ textarea, input { font-family: inherit; }
   left: 50%;
   transform: translateX(-50%);
   z-index: 70;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 12px 20px;
   border-radius: 999px;
   background: var(--accent);
@@ -532,6 +544,7 @@ textarea, input { font-family: inherit; }
   transition: background 0.15s;
 }
 .audio-unblock:hover { background: var(--accent-hover); }
+.audio-unblock .label-icon { width: 18px; height: 18px; vertical-align: 0; }
 
 /* Scrollbars */
 ::-webkit-scrollbar { width: 8px; }

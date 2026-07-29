@@ -1,6 +1,7 @@
 import { getState } from '../state.js';
 import { request } from '../socket.js';
 import { el, clear, initials } from '../util/dom.js';
+import { icon } from '../util/icons.js';
 
 /** Coluna direita: quem está online, status e canal de voz atual. */
 export function renderUsers() {
@@ -23,11 +24,13 @@ export function renderUsers() {
         el(
           'div',
           { class: 'member-status' },
-          p.voiceChannelId ? `🔊 ${voiceName(p.voiceChannelId) || 'em voz'}` : 'Online'
+          p.voiceChannelId
+            ? [icon('volume', 'inline-icon'), ` ${voiceName(p.voiceChannelId) || 'em voz'}`]
+            : 'Online'
         ),
       ]),
-      p.voice.muted ? el('span', { class: 'mini-icon', title: 'Mutado' }, '🔇') : null,
-      p.voice.deaf ? el('span', { class: 'mini-icon', title: 'Ensurdecido' }, '🎧') : null,
+      p.voice.muted ? el('span', { class: 'mini-icon', title: 'Mutado' }, icon('micOff')) : null,
+      p.voice.deaf ? el('span', { class: 'mini-icon', title: 'Ensurdecido' }, icon('headphones')) : null,
       me?.isAdmin && !isSelf ? adminMenu(p) : null,
     ]);
     container.append(row);
@@ -38,17 +41,17 @@ export function renderUsers() {
       el('button', {
         class: 'icon-btn', title: 'Silenciar',
         onClick: () => call('admin:silenceUser', { socketId: p.socketId, muted: !p.voice.muted }),
-      }, '🔇'),
+      }, icon('micOff')),
       el('button', {
         class: 'icon-btn', title: 'Mover para canal de voz',
         onClick: () => moveUser(p),
-      }, '🚪'),
+      }, icon('move')),
       el('button', {
         class: 'icon-btn danger', title: 'Expulsar',
         onClick: () => {
           if (confirm(`Expulsar ${p.user.name}?`)) call('admin:kickUser', { socketId: p.socketId });
         },
-      }, '⛔'),
+      }, icon('userX')),
     ]);
   }
 

@@ -7,6 +7,7 @@ import { initChat, setActiveChannel, appendMessage, updateMessage, removeMessage
 import { initSettings } from './ui/settings.js';
 import { voiceClient } from './voice/voice-client.js';
 import { initials } from './util/dom.js';
+import { icon, setIcon } from './util/icons.js';
 
 const channelHandlers = {
   onSelectText: (id) => setActiveChannel(id),
@@ -105,14 +106,16 @@ function setupSelfPanel() {
     setState({ activeVoiceChannel: s.channelId });
     btnMute.classList.toggle('active', s.muted);
     btnDeaf.classList.toggle('active', s.deaf);
-    btnMute.textContent = s.muted ? '🔇' : '🎤';
-    btnDeaf.textContent = s.deaf ? '🔈' : '🎧';
+    setIcon(btnMute, s.muted ? 'micOff' : 'mic');
+    setIcon(btnDeaf, s.deaf ? 'headphonesOff' : 'headphones');
 
     const status = document.getElementById('voice-status');
     if (s.connected) {
       const name = getState().channels.voice.find((c) => c.id === s.channelId)?.name || '';
       status.classList.remove('hidden');
-      status.querySelector('.voice-status-name').textContent = `🔊 ${name}`;
+      status
+        .querySelector('.voice-status-name')
+        .replaceChildren(icon('volume', 'inline-icon'), document.createTextNode(` ${name}`));
     } else {
       status.classList.add('hidden');
     }

@@ -2,6 +2,7 @@ import { getState, setState } from '../state.js';
 import { request } from '../socket.js';
 import { el, clear, initials, formatTime } from '../util/dom.js';
 import { renderMarkdown } from '../util/markdown.js';
+import { icon } from '../util/icons.js';
 
 let pendingAttachment = null;
 const loaded = new Map(); // id -> message (para resolver respostas)
@@ -122,13 +123,13 @@ function renderMessage(msg) {
   ]);
 
   const actions = el('div', { class: 'message-actions' }, [
-    el('button', { class: 'icon-btn', title: 'Responder', onClick: () => startReply(msg) }, '↩'),
-    canEdit ? el('button', { class: 'icon-btn', title: 'Editar', onClick: () => startEdit(msg) }, '✎') : null,
+    el('button', { class: 'icon-btn', title: 'Responder', onClick: () => startReply(msg) }, icon('reply')),
+    canEdit ? el('button', { class: 'icon-btn', title: 'Editar', onClick: () => startEdit(msg) }, icon('edit')) : null,
     canModify
       ? el('button', {
           class: 'icon-btn danger', title: 'Apagar',
           onClick: () => request('chat:delete', { id: msg.id }).catch((e) => alert(e.message)),
-        }, '🗑')
+        }, icon('trash'))
       : null,
   ]);
 
@@ -152,7 +153,7 @@ function attachmentNode(att) {
     ]);
   }
   return el('a', { class: 'attachment-file', href: att.url, target: '_blank', rel: 'noopener' }, [
-    el('span', { class: 'attachment-icon' }, '📎'),
+    el('span', { class: 'attachment-icon' }, icon('paperclip')),
     el('span', {}, att.name),
   ]);
 }
