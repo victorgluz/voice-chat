@@ -1,0 +1,51 @@
+-- Esquema do banco. Executado no boot; idempotente (IF NOT EXISTS).
+
+PRAGMA journal_mode = WAL;      -- melhor concorrência leitura/escrita
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS users (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  avatar     TEXT,
+  is_admin   INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  last_seen  INTEGER NOT NULL
+);
+
+-- Canais de texto.
+CREATE TABLE IF NOT EXISTS channels (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  icon       TEXT NOT NULL DEFAULT '💬',
+  position   INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+
+-- Canais de voz.
+CREATE TABLE IF NOT EXISTS voice_channels (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  icon       TEXT NOT NULL DEFAULT '🔊',
+  position   INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id          TEXT PRIMARY KEY,
+  channel_id  TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+  user_id     TEXT NOT NULL REFERENCES users(id),
+  content     TEXT NOT NULL,
+  reply_to    TEXT REFERENCES messages(id) ON DELETE SET NULL,
+  attachment  TEXT,           -- JSON: {url, name, mime, size} ou NULL
+  edited_at   INTEGER,
+  deleted     INTEGER NOT NULL DEFAULT 0,
+  created_at  INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_channel
+  ON messages (channel_id, created_at);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);

@@ -1,0 +1,10 @@
+node_modules/
+public/js/app.bundle.js
+public/js/app.bundle.js.map
+data/*.db
+data/*.db-*
+uploads/*
+!uploads/.gitkeep
+.env
+*.log
+certs/

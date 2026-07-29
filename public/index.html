@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>LAN Voice Chat</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>"
+    />
+  </head>
+  <body>
+    <!-- Tela de login -->
+    <div id="login-overlay">
+      <form id="login-form" class="login-card" autocomplete="off">
+        <h1>🎙️ LAN Voice Chat</h1>
+        <p class="login-sub">Entre para conversar na rede local.</p>
+
+        <div id="login-avatar-preview" class="avatar avatar-lg">🙂</div>
+        <label class="avatar-upload">
+          Escolher avatar (opcional)
+          <input id="login-avatar" type="file" accept="image/*" hidden />
+        </label>
+
+        <input id="login-name" type="text" maxlength="32" placeholder="Seu nome" required />
+        <button id="login-submit" type="submit">Entrar</button>
+        <div id="login-error" class="login-error"></div>
+      </form>
+    </div>
+
+    <!-- Aplicação (3 colunas) -->
+    <div id="app" class="hidden">
+      <!-- Coluna 0: rail de servidores -->
+      <nav id="server-rail">
+        <div class="server-icon active" title="Embarca Voip">🎙️</div>
+      </nav>
+
+      <!-- Coluna 1: canais + painel do usuário -->
+      <aside id="sidebar">
+        <header class="sidebar-header"><span id="server-name">Embarca Voip</span></header>
+        <div id="channel-list"></div>
+
+        <div id="self-panel">
+          <div id="voice-status" class="voice-status hidden">
+            <span class="voice-status-name"></span>
+            <button id="btn-leave" class="icon-btn danger" title="Sair do canal de voz">⛔</button>
+          </div>
+          <div class="self-row">
+            <div id="self-avatar" class="avatar avatar-sm"></div>
+            <span id="self-name" class="self-name"></span>
+            <div class="self-controls">
+              <button id="btn-mute" class="icon-btn" title="Mutar/desmutar microfone">🎤</button>
+              <button id="btn-deaf" class="icon-btn" title="Ensurdecer">🎧</button>
+              <button id="btn-settings" class="icon-btn" title="Configurar áudio (microfone e saída)">⚙️</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Coluna 2: chat -->
+      <main id="chat">
+        <header id="chat-header"><span id="chat-title"></span></header>
+        <div id="messages"></div>
+
+        <div id="reply-banner" class="reply-banner hidden">
+          <span class="reply-target"></span>
+          <button id="reply-cancel" class="icon-btn" title="Cancelar resposta">×</button>
+        </div>
+
+        <form id="composer" class="composer" autocomplete="off">
+          <div id="attach-chip" class="attach-chip hidden">
+            <span class="attach-name"></span>
+            <button id="attach-remove" type="button" class="icon-btn" title="Remover anexo">×</button>
+          </div>
+          <div class="composer-row">
+            <button id="attach-btn" type="button" class="icon-btn" title="Anexar arquivo">＋</button>
+            <input id="attach-input" type="file" hidden />
+            <textarea id="composer-input" rows="1" placeholder="Mensagem"></textarea>
+            <button type="submit" class="icon-btn send" title="Enviar">➤</button>
+          </div>
+        </form>
+      </main>
+
+      <!-- Coluna 3: usuários -->
+      <aside id="members"></aside>
+    </div>
+
+    <!-- Elementos <audio> dos participantes de voz ficam aqui (ocultos) -->
+    <div id="audio-sink" aria-hidden="true"></div>
+
+    <!-- Aviso: navegador bloqueou o autoplay do áudio remoto -->
+    <button id="audio-unblock" class="audio-unblock hidden">
+      🔊 Clique para ativar o áudio
+    </button>
+
+    <!-- Modal de configurações de áudio -->
+    <div id="settings-overlay" class="modal-overlay hidden">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Configurações de áudio">
+        <div class="modal-head">
+          <h2>Configurações de áudio</h2>
+          <button id="settings-close" class="icon-btn" title="Fechar">×</button>
+        </div>
+
+        <label class="settings-field">
+          <span>🎤 Microfone</span>
+          <select id="sel-mic"></select>
+        </label>
+
+        <label class="settings-field" id="settings-out-row">
+          <span>🔊 Saída de áudio</span>
+          <select id="sel-out"></select>
+        </label>
+
+        <div class="settings-field">
+          <span>🎚️ Teste de microfone</span>
+          <div class="mic-test-row">
+            <button id="mic-test-btn" type="button" class="btn-secondary">Testar</button>
+            <div class="mic-meter"><div id="mic-meter-fill" class="mic-meter-fill"></div></div>
+          </div>
+          <label class="mic-monitor">
+            <input type="checkbox" id="mic-monitor" checked />
+            🎧 Ouvir minha voz (use fones para evitar microfonia)
+          </label>
+        </div>
+
+        <div id="settings-hint" class="settings-hint"></div>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/app.bundle.js"></script>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "lan-voice-chat",
+  "version": "0.1.0",
+  "description": "Discord-like voice + text chat for local networks (LAN), powered by mediasoup SFU.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:client": "node scripts/build-client.js",
+    "gen-cert": "node scripts/gen-cert.js",
+    "prestart": "npm run build:client",
+    "start": "node server/index.js",
+    "dev": "node scripts/build-client.js --watch & node --watch server/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.0",
+    "express": "^4.21.2",
+    "mediasoup": "^3.15.0",
+    "mediasoup-client": "^3.7.18",
+    "multer": "^2.0.1",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2"
+  }
+}
