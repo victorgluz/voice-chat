@@ -33,6 +33,11 @@ export function updateUserName(id, name) {
   return getUser(id);
 }
 
+export function updateUserAvatar(id, avatar) {
+  getDb().prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, id);
+  return getUser(id);
+}
+
 /** Marca se este usuário deve ser admin (primeiro a entrar vira admin). */
 export function setAdmin(id, isAdmin) {
   getDb().prepare('UPDATE users SET is_admin = ? WHERE id = ?').run(isAdmin ? 1 : 0, id);

@@ -115,7 +115,7 @@ async function postJson(url, body) {
   return json;
 }
 
-async function uploadAvatar(file) {
+export async function uploadAvatar(file) {
   const body = new FormData();
   body.append('file', file);
   const res = await fetch('/api/upload', { method: 'POST', body });

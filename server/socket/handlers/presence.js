@@ -2,7 +2,7 @@ import * as users from '../../database/repositories/users.js';
 import { listChannels } from '../../database/repositories/channels.js';
 import { getAllSettings } from '../../database/repositories/settings.js';
 import * as state from '../state.js';
-import { cleanName } from '../../util/sanitize.js';
+import { cleanName, cleanAvatar } from '../../util/sanitize.js';
 import { verifyToken } from '../../util/auth.js';
 
 /**
@@ -53,6 +53,27 @@ export function registerPresenceHandlers(io, socket) {
       presence.user.name = user.name;
 
       if (typeof cb === 'function') cb({ data: { name: user.name } });
+      io.emit('presence:update', state.listPresence());
+    } catch (err) {
+      if (typeof cb === 'function') cb({ error: err.message });
+    }
+  });
+
+  // Edição da própria foto de perfil (nas configurações). A imagem já foi
+  // enviada por HTTP (/api/upload); aqui só persistimos a URL e propagamos a
+  // todos, para que o novo avatar apareça no painel de todos em tempo real.
+  socket.on('user:updateAvatar', ({ avatar } = {}, cb) => {
+    try {
+      const presence = state.getPresence(socket.id);
+      if (!presence) throw new Error('Não autenticado.');
+
+      const cleaned = cleanAvatar(avatar);
+      if (!cleaned) throw new Error('Imagem inválida.');
+
+      const user = users.updateUserAvatar(presence.user.id, cleaned);
+      presence.user.avatar = user.avatar;
+
+      if (typeof cb === 'function') cb({ data: { avatar: user.avatar } });
       io.emit('presence:update', state.listPresence());
     } catch (err) {
       if (typeof cb === 'function') cb({ error: err.message });

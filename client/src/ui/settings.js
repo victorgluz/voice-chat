@@ -2,7 +2,8 @@ import { voiceClient } from '../voice/voice-client.js';
 import { MicTest } from '../voice/mic-test.js';
 import { getState, setState } from '../state.js';
 import { request } from '../socket.js';
-import { clearToken } from './login.js';
+import { clearToken, uploadAvatar } from './login.js';
+import { initials } from '../util/dom.js';
 
 /**
  * Modal de configurações de voz: escolha do microfone (entrada) e da saída
@@ -31,6 +32,8 @@ export function initSettings() {
   const profileName = document.getElementById('profile-name');
   const profileSave = document.getElementById('profile-save');
   const profileHint = document.getElementById('profile-hint');
+  const avatarInput = document.getElementById('profile-avatar-input');
+  const avatarPreview = document.getElementById('profile-avatar-preview');
   const logoutBtn = document.getElementById('btn-logout');
 
   initProfile();
@@ -109,8 +112,48 @@ export function initSettings() {
     if (!overlay.classList.contains('hidden')) refresh();
   });
 
-  // Perfil: editar o próprio nome e sair da conta.
+  // Reflete o avatar atual no preview das configurações e no painel próprio
+  // (canto inferior esquerdo). A lista de membros à direita é atualizada pelo
+  // presence:update que o servidor propaga a todos.
+  function paintAvatar() {
+    const me = getState().me;
+    const selfAvatar = document.getElementById('self-avatar');
+    for (const node of [avatarPreview, selfAvatar]) {
+      if (!node) continue;
+      if (me.avatar?.startsWith('/uploads/')) {
+        node.style.backgroundImage = `url(${me.avatar})`;
+        node.textContent = '';
+      } else {
+        node.style.backgroundImage = '';
+        node.textContent = me.avatar || initials(me.name);
+      }
+    }
+  }
+
+  // Perfil: editar o próprio nome, a foto e sair da conta.
   function initProfile() {
+    paintAvatar();
+
+    // Trocar a foto: envia por HTTP, persiste a URL via socket e propaga a
+    // todos (presence:update), para que o novo avatar apareça no painel de
+    // todos os usuários conectados em tempo real.
+    avatarInput.addEventListener('change', async () => {
+      const file = avatarInput.files?.[0];
+      if (!file) return;
+      profileHint.textContent = 'Enviando foto…';
+      try {
+        const url = await uploadAvatar(file);
+        const { avatar } = await request('user:updateAvatar', { avatar: url });
+        setState({ me: { ...getState().me, avatar } });
+        paintAvatar();
+        profileHint.textContent = 'Foto atualizada ✓';
+      } catch (err) {
+        profileHint.textContent = err.message;
+      } finally {
+        avatarInput.value = '';
+      }
+    });
+
     async function save() {
       const name = profileName.value.trim();
       profileHint.textContent = '';
@@ -150,6 +193,7 @@ export function initSettings() {
     hint.textContent = '';
     profileHint.textContent = '';
     profileName.value = getState().me?.name || '';
+    paintAvatar();
     await ensureLabels(hint);
     await refresh();
     overlay.classList.remove('hidden');

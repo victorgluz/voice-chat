@@ -461,6 +461,8 @@ textarea, input { font-family: inherit; }
 }
 .settings-field input[type="text"]:focus { outline: 2px solid var(--accent); }
 .name-edit-row { display: flex; align-items: center; gap: 10px; }
+.profile-edit-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.profile-edit-row .avatar-upload { padding: 6px 0; }
 .settings-hint { color: var(--text-muted); font-size: 12px; min-height: 14px; }
 .btn-logout {
   padding: 10px;

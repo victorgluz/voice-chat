@@ -112,7 +112,14 @@
         </div>
 
         <div class="settings-field">
-          <span>👤 Seu nome</span>
+          <span>👤 Perfil</span>
+          <div class="profile-edit-row">
+            <div id="profile-avatar-preview" class="avatar avatar-lg"></div>
+            <label class="avatar-upload">
+              Alterar foto
+              <input id="profile-avatar-input" type="file" accept="image/*" hidden />
+            </label>
+          </div>
           <div class="name-edit-row">
             <input id="profile-name" type="text" maxlength="32" placeholder="Seu nome" />
             <button id="profile-save" type="button" class="btn-secondary">Salvar</button>
