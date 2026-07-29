@@ -15,11 +15,16 @@ export class VoiceClient {
     this.inputDeviceId = localStorage.getItem('voice.inputDeviceId') || null;
     this.outputDeviceId = localStorage.getItem('voice.outputDeviceId') || null;
 
+    // Sons do soundboard tocando agora (podem ser vários ao mesmo tempo).
+    // Independentes da call, por isso ficam fora do reset().
+    this.soundboardAudios = new Set();
+
     // Callbacks preenchidos pela UI.
     this.onSpeaking = () => {};
     this.onStateChange = () => {};
     this.onAudioBlocked = () => {}; // navegador bloqueou o autoplay do áudio remoto
     this.onAudioResumed = () => {};
+    this.onSoundboardChange = () => {}; // recebe a quantidade de sons tocando
 
     socket.on('voice:newProducer', ({ producerId, peerId }) => {
       if (!this.channelId) return;
@@ -155,7 +160,56 @@ export class VoiceClient {
     for (const { audioEl } of this.consumers.values()) {
       audioEl.play().catch(() => {});
     }
+    for (const audioEl of this.soundboardAudios) audioEl.play().catch(() => {});
     this.onAudioResumed();
+  }
+
+  /**
+   * Toca um som do soundboard localmente (num <audio> no #audio-sink), usando a
+   * mesma saída de áudio (setSinkId) e o mesmo desbloqueio de autoplay dos
+   * streams de voz. Chamado em todos os clientes via evento 'soundboard:play';
+   * o servidor decide a audiência (canal de voz ou preview solo). Vários sons
+   * podem tocar ao mesmo tempo (não corta o anterior).
+   */
+  playSound(url, { preview = false } = {}) {
+    // Ensurdecido não ouve broadcast do canal; o preview solo sempre toca.
+    if (this.deaf && !preview) return;
+
+    const audioEl = document.createElement('audio');
+    audioEl.autoplay = true;
+    audioEl.src = url;
+    document.getElementById('audio-sink').append(audioEl);
+    this.soundboardAudios.add(audioEl);
+    this._soundboardChanged();
+
+    const cleanup = () => {
+      if (this.soundboardAudios.delete(audioEl)) this._soundboardChanged();
+      audioEl.remove();
+    };
+    audioEl.addEventListener('ended', cleanup);
+    audioEl.addEventListener('error', cleanup);
+
+    this._applySink(audioEl);
+    this._tryPlay(audioEl);
+  }
+
+  /** Para TODOS os sons do soundboard que estiverem tocando. */
+  stopSound() {
+    if (!this.soundboardAudios.size) return;
+    for (const audioEl of this.soundboardAudios) {
+      try {
+        audioEl.pause();
+      } catch {
+        /* ignore */
+      }
+      audioEl.remove();
+    }
+    this.soundboardAudios.clear();
+    this._soundboardChanged();
+  }
+
+  _soundboardChanged() {
+    this.onSoundboardChange(this.soundboardAudios.size);
   }
 
   // ---- interno ----

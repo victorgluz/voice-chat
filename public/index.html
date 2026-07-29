@@ -62,6 +62,7 @@
               <button id="btn-mute" class="icon-btn" title="Mutar/desmutar microfone"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></button>
               <button id="btn-deaf" class="icon-btn" title="Ensurdecer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a9 9 0 0 1 18 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg></button>
               <button id="btn-settings" class="icon-btn" title="Configurar áudio (microfone e saída)"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button id="btn-soundboard" class="icon-btn" title="Soundboard"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
             </div>
           </div>
         </div>
@@ -153,6 +154,45 @@
         <div id="settings-hint" class="settings-hint"></div>
 
         <button id="btn-logout" type="button" class="btn-logout">Sair da conta</button>
+      </div>
+    </div>
+
+    <!-- Modal do soundboard -->
+    <div id="soundboard-overlay" class="modal-overlay hidden">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Soundboard">
+        <div class="modal-head">
+          <h2>Soundboard</h2>
+          <button id="soundboard-close" class="icon-btn" title="Fechar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+
+        <div class="soundboard-toolbar">
+          <button id="soundboard-stop" type="button" class="btn-secondary hidden"><svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg> Parar</button>
+          <button id="soundboard-add-toggle" type="button" class="btn-secondary"><svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Adicionar som</button>
+        </div>
+
+        <div id="soundboard-grid" class="soundboard-grid"></div>
+
+        <form id="soundboard-form" class="soundboard-form hidden" autocomplete="off">
+          <input id="sound-name" type="text" maxlength="48" placeholder="Nome do som — pode usar emoji 🙂 (obrigatório)" />
+
+          <div class="soundboard-file-row">
+            <label class="avatar-upload">Escolher áudio<input id="sound-audio" type="file" accept="audio/*" hidden /></label>
+          </div>
+
+          <div id="sound-trimmer" class="sound-trimmer hidden">
+            <canvas id="sound-waveform" class="sound-waveform"></canvas>
+            <div class="sound-trim-controls">
+              <button id="sound-preview" type="button" class="btn-secondary"><svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg> Ouvir trecho</button>
+              <span id="sound-range" class="settings-hint"></span>
+            </div>
+          </div>
+
+          <div class="soundboard-form-actions">
+            <button id="sound-submit" type="submit" class="btn-secondary">Enviar som</button>
+            <button id="sound-cancel" type="button" class="btn-secondary">Cancelar</button>
+          </div>
+          <div id="soundboard-hint" class="settings-hint"></div>
+        </form>
       </div>
     </div>
 

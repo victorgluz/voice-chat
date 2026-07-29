@@ -6,6 +6,7 @@ const state = {
   channels: { text: [], voice: [] },
   presence: [], // [{ socketId, user, voiceChannelId, voice }]
   settings: {},
+  sounds: [], // soundboard: [{ id, name, icon, url, mime, size, uploaderId, ... }]
   activeTextChannel: null,
   activeVoiceChannel: null,
   replyingTo: null, // mensagem sendo respondida

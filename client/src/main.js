@@ -5,6 +5,7 @@ import { renderChannels } from './ui/channels.js';
 import { renderUsers } from './ui/users.js';
 import { initChat, setActiveChannel, appendMessage, updateMessage, removeMessage } from './ui/chat.js';
 import { initSettings } from './ui/settings.js';
+import { initSoundboard, renderSounds } from './ui/soundboard.js';
 import { voiceClient } from './voice/voice-client.js';
 import { initials } from './util/dom.js';
 import { icon, setIcon } from './util/icons.js';
@@ -22,6 +23,7 @@ subscribe(() => {
   if (getState().me) {
     renderChannels(channelHandlers);
     renderUsers();
+    renderSounds();
   }
 });
 
@@ -30,6 +32,7 @@ function boot(loginData) {
     me: loginData.user,
     channels: loginData.channels,
     settings: loginData.settings,
+    sounds: loginData.sounds || [],
     presence: loginData.presence,
   });
 
@@ -38,6 +41,7 @@ function boot(loginData) {
 
   setupSelfPanel();
   initSettings();
+  initSoundboard();
   initChat();
 
   const firstText = loginData.channels.text[0];
@@ -45,11 +49,16 @@ function boot(loginData) {
 
   renderChannels(channelHandlers);
   renderUsers();
+  renderSounds();
 }
 
 function registerSocketEvents() {
   socket.on('presence:update', (presence) => setState({ presence }));
   socket.on('channels:update', (channels) => setState({ channels }));
+  socket.on('soundboard:update', (sounds) => setState({ sounds }));
+
+  socket.on('soundboard:play', ({ sound, preview }) => voiceClient.playSound(sound.url, { preview }));
+  socket.on('soundboard:stop', () => voiceClient.stopSound());
 
   socket.on('chat:message', appendMessage);
   socket.on('chat:updated', updateMessage);

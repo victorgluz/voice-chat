@@ -53,3 +53,17 @@ CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- Soundboard: biblioteca global de áudios (compartilhada por todo o servidor).
+CREATE TABLE IF NOT EXISTS sounds (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  icon        TEXT,                                    -- /uploads/... (imagem) ou NULL
+  url         TEXT NOT NULL,                           -- /uploads/<uuid>.<ext> do áudio
+  mime        TEXT,
+  size        INTEGER,
+  uploader_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at  INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sounds_created ON sounds (created_at);

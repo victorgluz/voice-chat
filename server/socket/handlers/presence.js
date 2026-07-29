@@ -1,6 +1,7 @@
 import * as users from '../../database/repositories/users.js';
 import { listChannels } from '../../database/repositories/channels.js';
 import { getAllSettings } from '../../database/repositories/settings.js';
+import { listSounds } from '../../database/repositories/sounds.js';
 import * as state from '../state.js';
 import { cleanName, cleanAvatar } from '../../util/sanitize.js';
 import { verifyToken } from '../../util/auth.js';
@@ -30,6 +31,7 @@ export function registerPresenceHandlers(io, socket) {
         user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar, isAdmin: user.isAdmin },
         channels: listChannels(),
         settings: getAllSettings(),
+        sounds: listSounds(),
         presence: state.listPresence(),
       };
 

@@ -546,6 +546,86 @@ textarea, input { font-family: inherit; }
 .audio-unblock:hover { background: var(--accent-hover); }
 .audio-unblock .label-icon { width: 18px; height: 18px; vertical-align: 0; }
 
+/* ---------- Soundboard ---------- */
+#soundboard-overlay .modal-card { width: 560px; max-width: 94vw; max-height: 88vh; overflow-y: auto; }
+.modal-card.drop-active { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.soundboard-toolbar { display: flex; gap: 10px; margin-bottom: 4px; }
+.soundboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 4px 2px 2px;
+}
+.soundboard-empty { grid-column: 1 / -1; color: var(--text-muted); font-size: 13px; padding: 12px 2px; }
+.sound-tile { position: relative; }
+.sound-play {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+  color: var(--text);
+  text-align: left;
+  transition: background 0.1s, transform 0.05s;
+}
+.sound-play:hover { background: var(--bg-hover); }
+.sound-play:active { transform: scale(0.97); }
+.sound-icon {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: var(--bg-light);
+  background-size: cover;
+  background-position: center;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+.sound-icon .icon { width: 16px; height: 16px; }
+.sound-name {
+  flex: 1; min-width: 0;
+  font-size: 13px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sound-del {
+  position: absolute; top: 50%; right: 4px;
+  transform: translateY(-50%);
+  width: 22px; height: 22px;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0; transition: opacity 0.1s;
+}
+.sound-tile:hover .sound-del { opacity: 1; }
+.sound-del .icon { width: 13px; height: 13px; }
+
+.soundboard-form { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; border-top: 1px solid var(--bg-darkest); padding-top: 12px; }
+.soundboard-form input[type="text"] {
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--bg-darkest);
+  border: 1px solid #1a1b1e;
+  color: var(--text);
+  font-size: 14px;
+}
+.soundboard-form input[type="text"]:focus { outline: 2px solid var(--accent); }
+.soundboard-file-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.soundboard-form-actions { display: flex; gap: 10px; }
+
+.sound-trimmer { display: flex; flex-direction: column; gap: 8px; }
+.sound-waveform {
+  width: 100%;
+  height: 96px;
+  display: block;
+  border-radius: var(--radius);
+  background: var(--bg-darkest);
+  cursor: ew-resize;
+  touch-action: none;
+}
+.sound-trim-controls { display: flex; align-items: center; gap: 12px; }
+
 /* Scrollbars */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--bg-darkest); border-radius: 4px; }

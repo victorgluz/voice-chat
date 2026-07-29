@@ -20,24 +20,44 @@ function fileFilter(_req, file, cb) {
   cb(allowed ? null : new Error('Tipo de arquivo não permitido.'), allowed);
 }
 
+function audioFilter(_req, file, cb) {
+  const allowed = file.mimetype.startsWith('audio/');
+  cb(allowed ? null : new Error('Apenas arquivos de áudio são permitidos.'), allowed);
+}
+
 const upload = multer({
   storage,
   fileFilter,
   limits: { fileSize: config.uploads.maxFileSizeBytes, files: 1 },
 });
 
-router.post('/upload', (req, res) => {
-  upload.single('file')(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message });
-    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+// Soundboard: áudio SEM limite de tamanho (nem de duração), por pedido explícito.
+// Só aceita audio/*. Multer usa diskStorage, então grava direto no disco (sem
+// estourar memória); o único risco é ocupar espaço em uploads/.
+const uploadAudio = multer({
+  storage,
+  fileFilter: audioFilter,
+  limits: { files: 1 },
+});
 
-    res.json({
-      url: `/uploads/${req.file.filename}`,
-      name: path.basename(req.file.originalname).slice(0, 200),
-      mime: req.file.mimetype,
-      size: req.file.size,
-    });
+function respondWithFile(req, res, err) {
+  if (err) return res.status(400).json({ error: err.message });
+  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+  res.json({
+    url: `/uploads/${req.file.filename}`,
+    name: path.basename(req.file.originalname).slice(0, 200),
+    mime: req.file.mimetype,
+    size: req.file.size,
   });
+}
+
+router.post('/upload', (req, res) => {
+  upload.single('file')(req, res, (err) => respondWithFile(req, res, err));
+});
+
+router.post('/upload/audio', (req, res) => {
+  uploadAudio.single('file')(req, res, (err) => respondWithFile(req, res, err));
 });
 
 export default router;

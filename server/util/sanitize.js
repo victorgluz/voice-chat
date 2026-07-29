@@ -21,6 +21,12 @@ export function cleanName(value) {
   return name.length >= 1 ? name : null;
 }
 
+/** Nome de um som do soundboard: obrigatório, até 48 caracteres. */
+export function cleanSoundName(value) {
+  const name = cleanText(value, 48);
+  return name.length >= 1 ? name : null;
+}
+
 /** Aceita apenas nomes de canal simples: letras, números, hífen, underscore. */
 export function cleanChannelName(value) {
   const raw = cleanText(value, 48).toLowerCase().replace(/\s+/g, '-');
