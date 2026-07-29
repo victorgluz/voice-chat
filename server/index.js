@@ -6,6 +6,7 @@ import { initDatabase } from './database/index.js';
 import { mediasoupServer } from './mediasoup/index.js';
 import { createApp } from './app.js';
 import { initSocket } from './socket/index.js';
+import { updateDnsRecord } from './util/cloudflare.js';
 
 function createServer(app) {
   if (!config.tls.enabled) return http.createServer(app);
@@ -44,6 +45,9 @@ async function main() {
     console.log('');
     console.log('  Compartilhe o endereço de rede com os outros computadores da LAN.');
     console.log('');
+
+    // Atualiza o DNS na Cloudflare (ignorado se CF_API_TOKEN não estiver definido).
+    updateDnsRecord();
   });
 }
 

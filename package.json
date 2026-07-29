@@ -11,8 +11,8 @@
     "build:client": "node scripts/build-client.js",
     "gen-cert": "node scripts/gen-cert.js",
     "prestart": "npm run build:client",
-    "start": "node server/index.js",
-    "dev": "node scripts/build-client.js --watch & node --watch server/index.js"
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "dev": "node scripts/build-client.js --watch & node --env-file-if-exists=.env --watch server/index.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.0",
