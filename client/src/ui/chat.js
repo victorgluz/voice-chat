@@ -27,6 +27,23 @@ export function initChat() {
     }
   });
 
+  // Colar imagem (print/copiar imagem) direto no chat: vira anexo.
+  input.addEventListener('paste', (e) => {
+    for (const item of e.clipboardData?.items || []) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          const named = file.name && /\.[a-z0-9]+$/i.test(file.name)
+            ? file.name
+            : `colado.${extForMime(file.type)}`;
+          handleAttach(file, named);
+        }
+        return;
+      }
+    }
+  });
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const { activeTextChannel, replyingTo } = getState();
@@ -118,7 +135,7 @@ function renderMessage(msg) {
       el('span', { class: 'message-time' }, formatTime(msg.createdAt)),
       msg.editedAt ? el('span', { class: 'message-edited' }, '(editado)') : null,
     ]),
-    contentNode(msg),
+    msg.content ? contentNode(msg) : null,
     msg.attachment ? attachmentNode(msg.attachment) : null,
   ]);
 
@@ -214,16 +231,31 @@ function cancelReply() {
 
 // ---- anexos ----
 
-async function handleAttach(file) {
+const MIME_EXT = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/bmp': 'bmp',
+  'image/svg+xml': 'svg',
+};
+
+function extForMime(mime) {
+  return MIME_EXT[mime] || 'png';
+}
+
+async function handleAttach(file, filename) {
   if (!file) return;
   const body = new FormData();
-  body.append('file', file);
+  body.append('file', file, filename || file.name || 'arquivo');
   try {
     const res = await fetch('/api/upload', { method: 'POST', body });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.error);
+    if (!res.ok) throw new Error(json.error || 'Falha no upload.');
     pendingAttachment = json;
-    showAttachmentChip(json.name);
+    showAttachmentChip(json.name || 'arquivo');
+    // Foca o campo para que Enter envie mesmo sem digitar texto.
+    document.getElementById('composer-input').focus();
   } catch (err) {
     alert(err.message);
   }
