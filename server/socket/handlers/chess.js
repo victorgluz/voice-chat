@@ -2,23 +2,26 @@ import { Chess } from 'chess.js';
 import * as state from '../state.js';
 
 /**
- * Xadrez multiplayer. Fila aberta ("open queue"): quem clica em jogar online
- * entra numa fila de um lugar; o próximo que entra é pareado na hora. As cores
- * são sorteadas no servidor (fonte da verdade). Todo lance é validado aqui com
- * chess.js — o cliente nunca é confiável — e retransmitido para os dois
- * jogadores, que animam a partir do broadcast (mesmo código dos dois lados).
+ * Xadrez multiplayer via convite no chat: quem clica em "Multiplayer" cria um
+ * convite (uma instância independente, com seu próprio id) que é anunciado
+ * para todo mundo; quem estiver vendo aquele canal vê um card clicável e
+ * entra na hora — sem fila cega. Vários convites (e várias partidas) podem
+ * coexistir ao mesmo tempo, inclusive no mesmo canal: cada um é uma instância
+ * própria, independente das outras.
  *
- * Estado é de módulo (compartilhado entre todos os sockets), volátil: some ao
- * reiniciar o servidor, como a presença.
+ * As cores são sorteadas no servidor. Todo lance é validado aqui com chess.js
+ * — o cliente nunca é confiável — e retransmitido para os dois jogadores.
  */
 
 const roomName = (gameId) => `chess:${gameId}`;
+const INVITE_TTL_MS = 10 * 60 * 1000; // convite não aceito expira em 10min
 
-// Estado compartilhado entre conexões.
-let waiting = null; // socketId aguardando par (ou null)
+// Estado compartilhado entre conexões (uma instância por processo, como presence).
+const invites = new Map(); // inviteId -> { id, channelId, hostSocketId, hostName, timer }
 const games = new Map(); // gameId -> { id, chess, white, black, whiteName, blackName, over }
 const socketGame = new Map(); // socketId -> gameId
 
+let nextInviteId = 1;
 let nextGameId = 1;
 
 export function registerChessHandlers(io, socket) {
@@ -37,50 +40,74 @@ export function registerChessHandlers(io, socket) {
     return presence;
   };
 
-  socket.on('chess:queueJoin', (data, cb) =>
-    ack(cb, async () => {
+  socket.on('chess:invite:create', (data, cb) =>
+    ack(cb, async ({ channelId } = {}) => {
       const presence = requirePresence();
-
+      if (!channelId) throw new Error('Canal inválido.');
       if (socketGame.has(socket.id)) throw new Error('Você já está em uma partida.');
-      if (waiting === socket.id) return { status: 'queued' };
-
-      // Ninguém esperando (ou o que esperava caiu): entra na fila.
-      if (!waiting || !state.getPresence(waiting)) {
-        waiting = socket.id;
-        return { status: 'queued' };
+      if ([...invites.values()].some((inv) => inv.hostSocketId === socket.id)) {
+        throw new Error('Você já tem um convite aberto.');
       }
 
-      // Há alguém esperando: forma a partida.
-      const opponentId = waiting;
-      waiting = null;
-      const opponent = state.getPresence(opponentId);
-
-      const meWhite = Math.random() < 0.5;
-      const whiteId = meWhite ? socket.id : opponentId;
-      const blackId = meWhite ? opponentId : socket.id;
-      const whiteName = state.getPresence(whiteId)?.user.name || 'Brancas';
-      const blackName = state.getPresence(blackId)?.user.name || 'Pretas';
-
-      const id = nextGameId++;
-      const game = { id, chess: new Chess(), white: whiteId, black: blackId, whiteName, blackName, over: false };
-      games.set(id, game);
-      socketGame.set(whiteId, id);
-      socketGame.set(blackId, id);
-
-      io.sockets.sockets.get(whiteId)?.join(roomName(id));
-      io.sockets.sockets.get(blackId)?.join(roomName(id));
-
-      io.to(whiteId).emit('chess:matchFound', { gameId: id, color: 'w', opponentName: blackName });
-      io.to(blackId).emit('chess:matchFound', { gameId: id, color: 'b', opponentName: whiteName });
-
-      return { status: 'matched' };
+      const id = nextInviteId++;
+      const invite = {
+        id,
+        channelId,
+        hostSocketId: socket.id,
+        hostName: presence.user.name,
+        timer: setTimeout(() => closeInvite(io, id, 'expired'), INVITE_TTL_MS),
+      };
+      invites.set(id, invite);
+      io.emit('chess:invite', publicInvite(invite));
+      return { id };
     })(data)
   );
 
-  socket.on('chess:queueLeave', (data, cb) =>
-    ack(cb, async () => {
-      if (waiting === socket.id) waiting = null;
-      return { left: true };
+  socket.on('chess:invite:cancel', (data, cb) =>
+    ack(cb, async ({ id } = {}) => {
+      const invite = invites.get(id);
+      if (invite && invite.hostSocketId === socket.id) closeInvite(io, id, 'cancelled');
+      return { ok: true };
+    })(data)
+  );
+
+  socket.on('chess:invite:accept', (data, cb) =>
+    ack(cb, async ({ id } = {}) => {
+      const presence = requirePresence();
+      const invite = invites.get(id);
+      if (!invite) throw new Error('Convite expirado ou já encerrado.');
+      if (invite.hostSocketId === socket.id) throw new Error('Você não pode entrar no seu próprio convite.');
+      if (socketGame.has(socket.id)) throw new Error('Você já está em uma partida.');
+
+      const host = state.getPresence(invite.hostSocketId);
+      if (!host || socketGame.has(invite.hostSocketId)) {
+        closeInvite(io, id, 'expired');
+        throw new Error('O anfitrião não está mais disponível.');
+      }
+
+      clearTimeout(invite.timer);
+      invites.delete(id);
+      io.emit('chess:invite:closed', { id, reason: 'started' });
+
+      const meWhite = Math.random() < 0.5;
+      const whiteId = meWhite ? socket.id : invite.hostSocketId;
+      const blackId = meWhite ? invite.hostSocketId : socket.id;
+      const whiteName = state.getPresence(whiteId)?.user.name || 'Brancas';
+      const blackName = state.getPresence(blackId)?.user.name || 'Pretas';
+
+      const gameId = nextGameId++;
+      const game = { id: gameId, chess: new Chess(), white: whiteId, black: blackId, whiteName, blackName, over: false };
+      games.set(gameId, game);
+      socketGame.set(whiteId, gameId);
+      socketGame.set(blackId, gameId);
+
+      io.sockets.sockets.get(whiteId)?.join(roomName(gameId));
+      io.sockets.sockets.get(blackId)?.join(roomName(gameId));
+
+      io.to(whiteId).emit('chess:matchFound', { gameId, color: 'w', opponentName: blackName });
+      io.to(blackId).emit('chess:matchFound', { gameId, color: 'b', opponentName: whiteName });
+
+      return { status: 'matched' };
     })(data)
   );
 
@@ -129,7 +156,9 @@ export function registerChessHandlers(io, socket) {
   );
 
   const cleanup = () => {
-    if (waiting === socket.id) waiting = null;
+    for (const inv of [...invites.values()]) {
+      if (inv.hostSocketId === socket.id) closeInvite(io, inv.id, 'cancelled');
+    }
     const gameId = socketGame.get(socket.id);
     if (gameId == null) return;
     const game = games.get(gameId);
@@ -140,6 +169,18 @@ export function registerChessHandlers(io, socket) {
   };
 
   return { cleanup };
+}
+
+function publicInvite(invite) {
+  return { id: invite.id, channelId: invite.channelId, hostName: invite.hostName };
+}
+
+function closeInvite(io, id, reason) {
+  const invite = invites.get(id);
+  if (!invite) return;
+  clearTimeout(invite.timer);
+  invites.delete(id);
+  io.emit('chess:invite:closed', { id, reason });
 }
 
 function colorOf(game, socketId) {

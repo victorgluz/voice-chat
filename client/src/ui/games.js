@@ -1,16 +1,18 @@
+import { getState } from '../state.js';
 import { request } from '../socket.js';
 import { openChessGame, startOnlineChess } from './chess-game.js';
 import { showError } from './dialog.js';
 
 /**
  * Modal "Jogos": lista de jogos e, ao escolher xadrez, um seletor de modo
- * (contra o bot ou multiplayer). No multiplayer entra numa fila aberta e
- * espera outro jogador; quando o servidor pareia (evento chess:matchFound,
- * tratado em main.js), a partida online abre.
+ * (contra o bot ou multiplayer). No multiplayer cria um CONVITE — uma
+ * instância própria, anunciada no chat do canal atual — e fecha o modal na
+ * hora: quem espera é o CARD no chat (spinner + cancelar), não uma tela deste
+ * modal (ver chess-invite-card em chat.js). Vários convites (e várias
+ * partidas) podem existir ao mesmo tempo, inclusive no mesmo canal.
  */
 let overlay, closeBtn, titleEl;
-let gridView, modeView, waitingView;
-let inQueue = false;
+let gridView, modeView;
 
 export function initGames() {
   overlay = document.getElementById('games-overlay');
@@ -18,7 +20,6 @@ export function initGames() {
   titleEl = document.getElementById('games-title');
   gridView = document.getElementById('games-grid');
   modeView = document.getElementById('games-mode');
-  waitingView = document.getElementById('games-waiting');
 
   document.getElementById('game-tile-chess').addEventListener('click', () => showMode('Xadrez'));
   document.getElementById('mode-back').addEventListener('click', showGrid);
@@ -26,24 +27,14 @@ export function initGames() {
     closeGamesModal();
     openChessGame();
   });
-  document.getElementById('mode-online').addEventListener('click', joinQueue);
-  document.getElementById('waiting-cancel').addEventListener('click', leaveQueue);
+  document.getElementById('mode-online').addEventListener('click', createInvite);
 
-  closeBtn.addEventListener('click', () => {
-    leaveQueue();
-    closeGamesModal();
-  });
+  closeBtn.addEventListener('click', closeGamesModal);
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      leaveQueue();
-      closeGamesModal();
-    }
+    if (e.target === overlay) closeGamesModal();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
-      leaveQueue();
-      closeGamesModal();
-    }
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeGamesModal();
   });
 }
 
@@ -62,46 +53,30 @@ function showGrid() {
   titleEl.textContent = 'Jogos';
   gridView.classList.remove('hidden');
   modeView.classList.add('hidden');
-  waitingView.classList.add('hidden');
 }
 
 function showMode(gameName) {
   titleEl.textContent = gameName;
   gridView.classList.add('hidden');
   modeView.classList.remove('hidden');
-  waitingView.classList.add('hidden');
 }
 
-function showWaiting() {
-  gridView.classList.add('hidden');
-  modeView.classList.add('hidden');
-  waitingView.classList.remove('hidden');
-}
+// ---- convite multiplayer ----
 
-// ---- fila multiplayer ----
-
-async function joinQueue() {
-  showWaiting();
-  inQueue = true;
+async function createInvite() {
+  const channelId = getState().activeTextChannel;
+  if (!channelId) return;
   try {
-    await request('chess:queueJoin');
-    // Se pareou na hora, chess:matchFound já chegou (ver main.js) e fechou o modal.
+    await request('chess:invite:create', { channelId });
+    closeGamesModal();
   } catch (err) {
-    inQueue = false;
     showError(err.message);
-    showMode('Xadrez');
   }
 }
 
-function leaveQueue() {
-  if (!inQueue) return;
-  inQueue = false;
-  request('chess:queueLeave').catch(() => {});
-}
-
-/** Chamado pelo main.js quando o servidor forma a partida. */
+/** Chamado pelo main.js quando o servidor forma a partida (eu criei o convite
+ * e alguém entrou, ou eu mesmo cliquei para entrar no convite de outra pessoa). */
 export function onMatchFound({ gameId, color, opponentName }) {
-  inQueue = false;
   closeGamesModal();
   startOnlineChess({ gameId, color, opponentName });
 }
