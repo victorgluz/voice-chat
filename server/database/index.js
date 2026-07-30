@@ -36,6 +36,10 @@ function migrate() {
   db.exec(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email) WHERE email IS NOT NULL'
   );
+
+  // Coluna de menções na mensagem (JSON de userIds) para bancos antigos.
+  const msgCols = db.prepare('PRAGMA table_info(messages)').all().map((c) => c.name);
+  if (!msgCols.includes('mentions')) db.exec('ALTER TABLE messages ADD COLUMN mentions TEXT');
 }
 
 export function getDb() {

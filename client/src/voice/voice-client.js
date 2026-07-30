@@ -2,6 +2,7 @@ import { Device } from 'mediasoup-client';
 import { socket, request } from '../socket.js';
 import joinSoundUrl from '../sounds/join.mp3';
 import leaveSoundUrl from '../sounds/leave.mp3';
+import notificationSoundUrl from '../sounds/notification.mp3';
 
 /**
  * Cliente WebRTC/SFU. Cada participante:
@@ -285,7 +286,9 @@ export class VoiceClient {
    * evento do servidor). Ignora falha de autoplay silenciosamente.
    */
   playNotification(type) {
-    const audio = new Audio(type === 'leave' ? leaveSoundUrl : joinSoundUrl);
+    const url =
+      type === 'leave' ? leaveSoundUrl : type === 'mention' ? notificationSoundUrl : joinSoundUrl;
+    const audio = new Audio(url);
     audio.volume = 0.6;
     this._applySink(audio);
     audio.play().catch(() => {});

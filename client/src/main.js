@@ -39,6 +39,8 @@ function boot(loginData) {
     settings: loginData.settings,
     sounds: loginData.sounds || [],
     presence: loginData.presence,
+    users: loginData.users || [],
+    mentions: loginData.mentions || [],
   });
 
   document.getElementById('app').classList.remove('hidden');
@@ -61,6 +63,7 @@ function boot(loginData) {
 
 function registerSocketEvents() {
   socket.on('presence:update', (presence) => setState({ presence }));
+  socket.on('users:update', (users) => setState({ users }));
   socket.on('channels:update', (channels) => setState({ channels }));
   socket.on('soundboard:update', (sounds) => setState({ sounds }));
 
@@ -69,7 +72,21 @@ function registerSocketEvents() {
   );
   socket.on('soundboard:stop', () => voiceClient.stopSound());
 
-  socket.on('chat:message', appendMessage);
+  socket.on('chat:message', (msg) => {
+    const me = getState().me;
+    // Fui mencionado (e não sou o autor): toca notificação e marca como não lida
+    // (badge). O IntersectionObserver marca lida quando a mensagem for vista.
+    if (msg.mentions?.includes(me?.id) && msg.userId !== me?.id) {
+      voiceClient.playNotification('mention');
+      const mentions = getState().mentions;
+      if (!mentions.some((m) => m.messageId === msg.id)) {
+        setState({
+          mentions: [...mentions, { messageId: msg.id, channelId: msg.channelId, createdAt: msg.createdAt }],
+        });
+      }
+    }
+    appendMessage(msg);
+  });
   socket.on('chat:updated', updateMessage);
   socket.on('chat:deleted', ({ id }) => removeMessage(id));
 

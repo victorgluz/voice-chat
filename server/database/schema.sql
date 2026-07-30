@@ -67,3 +67,14 @@ CREATE TABLE IF NOT EXISTS sounds (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sounds_created ON sounds (created_at);
+
+-- Menções (@user) por mensagem, para badges e "não lida" persistente por usuário.
+CREATE TABLE IF NOT EXISTS mentions (
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  user_id    TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  read       INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (message_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_mentions_user ON mentions (user_id, read);

@@ -5,16 +5,32 @@ import { icon } from '../util/icons.js';
 import { openUserVolumeMenu } from './user-volume-menu.js';
 import { showError } from './dialog.js';
 
-/** Coluna direita: quem está online, status e canal de voz atual. */
+/** Coluna direita: todos os usuários cadastrados — online no topo, offline embaixo. */
 export function renderUsers() {
   const container = clear(document.getElementById('members'));
-  const { presence, channels, me } = getState();
+  const { presence, users, channels, me } = getState();
 
   const voiceName = (id) => channels.voice.find((c) => c.id === id)?.name;
 
-  container.append(el('div', { class: 'members-header' }, `Online — ${presence.length}`));
+  // Presença por usuário (dedup por id, caso haja múltiplas abas).
+  const presByUser = new Map();
+  for (const p of presence) if (!presByUser.has(p.user.id)) presByUser.set(p.user.id, p);
 
-  for (const p of presence) {
+  const online = [];
+  const offline = [];
+  for (const u of users) (presByUser.has(u.id) ? online : offline).push(u);
+  online.sort((a, b) => a.name.localeCompare(b.name));
+  offline.sort((a, b) => a.name.localeCompare(b.name));
+
+  container.append(el('div', { class: 'members-header' }, `Online — ${online.length}`));
+  for (const u of online) container.append(onlineRow(presByUser.get(u.id)));
+
+  if (offline.length) {
+    container.append(el('div', { class: 'members-header' }, `Offline — ${offline.length}`));
+    for (const u of offline) container.append(offlineRow(u));
+  }
+
+  function onlineRow(p) {
     const isSelf = p.user.id === me?.id;
     const row = el('div', { class: `member${p.voice.speaking ? ' speaking' : ''}` }, [
       avatar(p.user),
@@ -39,7 +55,20 @@ export function renderUsers() {
     ]);
     // Botão direito: ajustar volume de voz/efeitos dessa pessoa (menos você mesmo).
     if (!isSelf) row.addEventListener('contextmenu', (e) => openUserVolumeMenu(e, p));
-    container.append(row);
+    return row;
+  }
+
+  function offlineRow(u) {
+    return el('div', { class: 'member offline' }, [
+      avatar(u),
+      el('div', { class: 'member-info' }, [
+        el('div', { class: 'member-name' }, [
+          u.name,
+          u.isAdmin ? el('span', { class: 'badge', title: 'Administrador' }, 'ADMIN') : null,
+        ]),
+        el('div', { class: 'member-status' }, 'Offline'),
+      ]),
+    ]);
   }
 
   function adminMenu(p) {

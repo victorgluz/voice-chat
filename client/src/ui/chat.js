@@ -20,6 +20,10 @@ export function initChat() {
   document.getElementById('reply-cancel').addEventListener('click', cancelReply);
   document.getElementById('attach-remove').addEventListener('click', clearAttachment);
 
+  // Autocomplete de @menção. Registrado ANTES do Enter-envia para interceptar
+  // as teclas quando a lista está aberta.
+  initMentionAutocomplete(form, input);
+
   // Enter envia; Shift+Enter quebra linha.
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -151,11 +155,54 @@ function renderMessage(msg) {
       : null,
   ]);
 
-  return el('div', { class: 'message', dataset: { id: msg.id } }, [avatarNode(msg.author), body, actions]);
+  const mentionsMe = me && msg.mentions?.includes(me.id);
+  const node = el('div', {
+    class: `message${mentionsMe ? ' mentioned' : ''}`,
+    dataset: { id: msg.id },
+  }, [avatarNode(msg.author), body, actions]);
+
+  // Se é uma menção ainda não lida para mim, observa para marcar lida ao ver.
+  if (mentionsMe && getState().mentions.some((m) => m.messageId === msg.id)) {
+    getMentionObserver().observe(node);
+  }
+  return node;
+}
+
+// Marca menções como lidas quando as mensagens ficam visíveis na tela.
+let mentionObserver = null;
+function getMentionObserver() {
+  if (mentionObserver) return mentionObserver;
+  mentionObserver = new IntersectionObserver(
+    (entries) => {
+      const seen = [];
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          seen.push(e.target.dataset.id);
+          mentionObserver.unobserve(e.target);
+        }
+      }
+      if (seen.length) markMentionsSeen(seen);
+    },
+    { threshold: 0.05 }
+  );
+  return mentionObserver;
+}
+
+function markMentionsSeen(messageIds) {
+  const { mentions } = getState();
+  const remaining = mentions.filter((m) => !messageIds.includes(m.messageId));
+  if (remaining.length !== mentions.length) {
+    setState({ mentions: remaining });
+    request('mentions:read', { messageIds }).catch(() => {});
+  }
 }
 
 function contentNode(msg) {
-  return el('div', { class: 'message-content', html: renderMarkdown(msg.content) });
+  const { users, me } = getState();
+  return el('div', {
+    class: 'message-content',
+    html: renderMarkdown(msg.content, { users, meId: me?.id }),
+  });
 }
 
 function replyReference(replyId) {
@@ -277,6 +324,102 @@ function clearAttachment() {
 function scrollToBottom() {
   const list = document.getElementById('messages');
   list.scrollTop = list.scrollHeight;
+}
+
+/**
+ * Autocomplete de @menção no composer: ao digitar "@" + texto, mostra uma lista
+ * de usuários cadastrados; setas navegam, Enter/Tab escolhem, Esc fecha.
+ * Também aceita @nome digitado direto (a resolução final é feita no servidor).
+ */
+function initMentionAutocomplete(form, input) {
+  const box = el('div', { class: 'mention-autocomplete hidden' });
+  form.append(box);
+
+  let items = [];
+  let index = 0;
+  let start = -1; // posição do "@" no texto
+
+  const open = () => items.length > 0 && !box.classList.contains('hidden');
+
+  function update() {
+    const caret = input.selectionStart;
+    const m = input.value.slice(0, caret).match(/@([^\s@]*)$/);
+    if (!m) return close();
+    start = caret - m[0].length;
+    const query = m[1].toLowerCase();
+    items = getState()
+      .users.filter((u) => u.name.toLowerCase().includes(query))
+      .slice(0, 8);
+    if (!items.length) return close();
+    index = 0;
+    render();
+  }
+
+  function render() {
+    clear(box);
+    items.forEach((u, i) => {
+      box.append(
+        el(
+          'div',
+          {
+            class: `mention-ac-item${i === index ? ' active' : ''}`,
+            onMousedown: (e) => {
+              e.preventDefault(); // não perde o foco do textarea
+              pick(u);
+            },
+          },
+          [acAvatar(u), el('span', { class: 'mention-ac-name' }, u.name)]
+        )
+      );
+    });
+    box.classList.remove('hidden');
+  }
+
+  function pick(u) {
+    const caret = input.selectionStart;
+    const before = input.value.slice(0, start);
+    const after = input.value.slice(caret);
+    const insert = `@${u.name} `;
+    input.value = before + insert + after;
+    const pos = (before + insert).length;
+    input.setSelectionRange(pos, pos);
+    close();
+    input.focus();
+  }
+
+  function close() {
+    items = [];
+    box.classList.add('hidden');
+  }
+
+  input.addEventListener('input', update);
+  input.addEventListener('blur', () => setTimeout(close, 120));
+  input.addEventListener('keydown', (e) => {
+    if (!open()) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      index = (index + 1) % items.length;
+      render();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      index = (index - 1 + items.length) % items.length;
+      render();
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      e.stopImmediatePropagation(); // impede o Enter-envia
+      pick(items[index]);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+    }
+  });
+}
+
+function acAvatar(u) {
+  const node = el('div', { class: 'avatar avatar-sm' });
+  if (u.avatar?.startsWith('/uploads/')) node.style.backgroundImage = `url(${u.avatar})`;
+  else node.textContent = u.avatar || initials(u.name);
+  return node;
 }
 
 export { cancelReply, clearAttachment };
