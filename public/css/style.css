@@ -153,6 +153,7 @@ textarea, input { font-family: inherit; }
   color: var(--text-bright);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
 }
+.server-logo { height: 40px; width: auto; object-fit: contain; display: block; }
 #channel-list { flex: 1; overflow-y: auto; padding: 8px; }
 
 .channel-section { margin-bottom: 16px; }
