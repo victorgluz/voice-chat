@@ -1,12 +1,15 @@
 import { getState, setState } from '../state.js';
-import { request } from '../socket.js';
+import { socket, request } from '../socket.js';
 import { el, clear, initials, formatTime } from '../util/dom.js';
 import { renderMarkdown } from '../util/markdown.js';
 import { icon } from '../util/icons.js';
 import { showError } from './dialog.js';
+import { openAttachMenu } from './attach-menu.js';
+import { openGamesModal } from './games.js';
 
 let pendingAttachment = null;
 const loaded = new Map(); // id -> message (para resolver respostas)
+const pendingInvites = new Map(); // inviteId -> convite de xadrez ainda aberto
 
 export function initChat() {
   const form = document.getElementById('composer');
@@ -14,7 +17,12 @@ export function initChat() {
   const attachInput = document.getElementById('attach-input');
   const attachBtn = document.getElementById('attach-btn');
 
-  attachBtn.addEventListener('click', () => attachInput.click());
+  attachBtn.addEventListener('click', () =>
+    openAttachMenu(attachBtn, {
+      onMedia: () => attachInput.click(),
+      onGames: () => openGamesModal(),
+    })
+  );
   attachInput.addEventListener('change', () => handleAttach(attachInput.files?.[0]));
 
   document.getElementById('reply-cancel').addEventListener('click', cancelReply);
@@ -109,6 +117,11 @@ export async function setActiveChannel(channelId) {
       const node = renderMessage(msg);
       if (node) list.append(node);
     }
+    // Convites de xadrez são efêmeros (não vêm no histórico) — reaplica os que
+    // ainda estiverem abertos para este canal.
+    for (const invite of pendingInvites.values()) {
+      if (invite.channelId === channelId) list.append(renderInviteCard(invite));
+    }
     scrollToBottom();
   } catch (err) {
     list.append(el('div', { class: 'chat-error' }, err.message));
@@ -124,6 +137,108 @@ export function appendMessage(msg) {
   const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
   list.append(node);
   if (nearBottom) scrollToBottom();
+}
+
+/** Convite de xadrez multiplayer anunciado por alguém (chess:invite). Cada
+ * convite é uma instância própria — vários podem estar abertos ao mesmo
+ * tempo, inclusive no mesmo canal. Enquanto aberto, quem criou vê um spinner
+ * infinito no próprio card (nada de tela de espera separada); quando expira,
+ * é cancelado ou vira partida, o MESMO card muda de estado em vez de sumir —
+ * igual ao jeito que o Discord trata convites de activity no chat. */
+export function appendChessInvite(invite) {
+  pendingInvites.set(invite.id, { ...invite, status: 'open' });
+  renderIfActive(invite.id);
+}
+
+/** Convite encerrado (aceito, cancelado ou expirado) — atualiza o card no lugar. */
+export function closeChessInvite(id, reason) {
+  const invite = pendingInvites.get(id);
+  if (!invite) return;
+  invite.status = 'closed';
+  invite.reason = reason;
+  renderIfActive(id);
+}
+
+function renderIfActive(id) {
+  const invite = pendingInvites.get(id);
+  if (!invite || invite.channelId !== getState().activeTextChannel) return;
+  const card = renderInviteCard(invite);
+  const existing = document.querySelector(`.chess-invite[data-invite-id="${id}"]`);
+  if (existing) {
+    existing.replaceWith(card);
+    return;
+  }
+  const list = document.getElementById('messages');
+  const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+  list.append(card);
+  if (nearBottom) scrollToBottom();
+}
+
+function renderInviteCard(invite) {
+  // O anfitrião também vê o próprio convite no chat (como no Discord).
+  const isMine = invite.hostSocketId === socket.id;
+
+  if (invite.status === 'closed') {
+    const label =
+      invite.reason === 'started'
+        ? 'Partida já começou.'
+        : invite.reason === 'cancelled'
+        ? isMine
+          ? 'Você cancelou o convite.'
+          : 'Convite cancelado.'
+        : 'Convite expirado — ninguém entrou a tempo.';
+    return el('div', { class: 'message chess-invite closed', dataset: { inviteId: invite.id } }, [
+      el('div', { class: 'message-avatar chess-invite-avatar' }, '♞'),
+      el('div', { class: 'message-body' }, [
+        el('div', { class: 'chess-invite-title' }, `${invite.hostName} quer jogar Xadrez`),
+        el('div', { class: 'chess-invite-sub' }, label),
+      ]),
+    ]);
+  }
+
+  return el('div', { class: 'message chess-invite', dataset: { inviteId: invite.id } }, [
+    el('div', { class: 'message-avatar chess-invite-avatar' }, '♞'),
+    el('div', { class: 'message-body' }, [
+      el('div', { class: 'chess-invite-title' }, `${invite.hostName} quer jogar Xadrez`),
+      el(
+        'div',
+        { class: 'chess-invite-sub' },
+        isMine
+          ? [el('span', { class: 'chess-invite-spinner' }), 'Aguardando alguém entrar…']
+          : 'Multiplayer — clique para entrar na partida'
+      ),
+    ]),
+    isMine
+      ? el(
+          'button',
+          {
+            type: 'button',
+            class: 'icon-btn danger chess-invite-cancel',
+            title: 'Cancelar convite',
+            onClick: () => request('chess:invite:cancel', { id: invite.id }).catch(() => {}),
+          },
+          icon('close')
+        )
+      : el(
+          'button',
+          {
+            type: 'button',
+            class: 'btn-secondary chess-invite-join',
+            onClick: (e) => acceptChessInvite(invite.id, e.currentTarget),
+          },
+          'Entrar'
+        ),
+  ]);
+}
+
+async function acceptChessInvite(id, btn) {
+  btn.disabled = true;
+  try {
+    await request('chess:invite:accept', { id });
+  } catch (err) {
+    btn.disabled = false;
+    showError(err.message);
+  }
 }
 
 export function updateMessage(msg) {
