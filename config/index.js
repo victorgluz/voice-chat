@@ -84,7 +84,27 @@ export const config = {
 
   uploads: {
     maxFileSizeBytes: Number(process.env.MAX_UPLOAD_BYTES) || 25 * 1024 * 1024, // 25MB
-    allowedMimePrefixes: ['image/', 'video/', 'audio/', 'text/', 'application/pdf'],
+    // Lista curada: mídia, PDF, texto, documentos Office/OpenDocument e
+    // arquivos compactados. Executáveis ficam de fora por segurança.
+    allowedMimePrefixes: [
+      'image/',
+      'video/',
+      'audio/',
+      'text/',
+      'application/pdf',
+      'application/json',
+      'application/rtf',
+      'application/zip',
+      'application/x-zip-compressed',
+      'application/x-7z-compressed',
+      'application/x-rar-compressed',
+      'application/gzip',
+      'application/x-tar',
+      'application/msword',
+      'application/vnd.ms-',
+      'application/vnd.openxmlformats-officedocument.',
+      'application/vnd.oasis.opendocument.',
+    ],
   },
 
   mediasoup: {

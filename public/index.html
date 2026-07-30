@@ -6,10 +6,7 @@
     <meta name="color-scheme" content="dark" />
     <title>LOCALL</title>
     <link rel="stylesheet" href="/css/style.css?v=alpha-pieces-5" />
-    <link
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>"
-    />
+    <link id="favicon" rel="icon" href="/images/locall-favicon.png" />
   </head>
   <body>
     <!-- Tela de login / cadastro -->
@@ -27,7 +24,7 @@
 
         <!-- Campos exclusivos do cadastro -->
         <div id="register-only" class="register-only hidden">
-          <div id="login-avatar-preview" class="avatar avatar-lg">🙂</div>
+          <div id="login-avatar-preview" class="avatar avatar-lg">😎</div>
           <label class="avatar-upload">
             Escolher avatar (opcional)
             <input id="login-avatar" type="file" accept="image/*" hidden />
@@ -47,7 +44,7 @@
     <div id="app" class="hidden">
       <!-- Coluna 1: canais + painel do usuário -->
       <aside id="sidebar">
-        <header class="sidebar-header"><span id="server-name">LOCALL</span></header>
+        <header class="sidebar-header"><img id="server-logo" class="server-logo" src="/images/locall-logo.png" alt="locall" /></header>
         <div id="channel-list"></div>
 
         <div id="self-panel">
@@ -101,6 +98,7 @@
 
         <form id="composer" class="composer" autocomplete="off">
           <div id="attach-chip" class="attach-chip hidden">
+            <img id="attach-thumb" class="attach-thumb hidden" alt="" />
             <span class="attach-name"></span>
             <button id="attach-remove" type="button" class="icon-btn" title="Remover anexo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
           </div>
@@ -119,6 +117,14 @@
 
     <!-- Elementos <audio> dos participantes de voz ficam aqui (ocultos) -->
     <div id="audio-sink" aria-hidden="true"></div>
+
+    <!-- Overlay de arrastar-e-soltar arquivo -->
+    <div id="drop-overlay" class="drop-overlay hidden">
+      <div class="drop-box">
+        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+        <span>Solte o arquivo para anexar</span>
+      </div>
+    </div>
 
     <!-- Overlay em tela cheia para assistir à tela compartilhada de alguém -->
     <div id="screen-overlay" class="screen-overlay hidden">
