@@ -28,6 +28,7 @@ export function initSettings() {
   const testBtn = document.getElementById('mic-test-btn');
   const meterFill = document.getElementById('mic-meter-fill');
   const monitorChk = document.getElementById('mic-monitor');
+  const noiseSupprChk = document.getElementById('noise-suppression');
 
   const profileName = document.getElementById('profile-name');
   const profileSave = document.getElementById('profile-save');
@@ -88,6 +89,14 @@ export function initSettings() {
   });
 
   monitorChk.addEventListener('change', () => micTest.setMonitor(monitorChk.checked));
+
+  noiseSupprChk.addEventListener('change', async () => {
+    try {
+      await voiceClient.setNoiseSuppression(noiseSupprChk.checked);
+    } catch (err) {
+      hint.textContent = 'Falha ao alterar redução de ruído: ' + err.message;
+    }
+  });
 
   micSel.addEventListener('change', async () => {
     try {
@@ -193,6 +202,7 @@ export function initSettings() {
     hint.textContent = '';
     profileHint.textContent = '';
     profileName.value = getState().me?.name || '';
+    noiseSupprChk.checked = voiceClient.noiseSuppression;
     paintAvatar();
     await ensureLabels(hint);
     await refresh();

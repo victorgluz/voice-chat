@@ -1,6 +1,7 @@
 node_modules/
 public/js/app.bundle.js
 public/js/app.bundle.js.map
+public/wns/
 data/*.db
 data/*.db-*
 uploads/*
