@@ -6,10 +6,13 @@ import { icon } from '../util/icons.js';
 import { showError } from './dialog.js';
 import { openAttachMenu } from './attach-menu.js';
 import { openGamesModal } from './games.js';
+import { spectateChessGame, spectateBotGame } from './chess-game.js';
 
 let pendingAttachment = null;
 const loaded = new Map(); // id -> message (para resolver respostas)
 const pendingInvites = new Map(); // inviteId -> convite de xadrez ainda aberto
+const pendingAnnouncements = []; // [{channelId, text}] resultados de partidas já encerradas
+const pendingBotGames = new Map(); // botGameId -> sessão de partida contra o bot anunciada
 
 export function initChat() {
   const form = document.getElementById('composer');
@@ -117,10 +120,16 @@ export async function setActiveChannel(channelId) {
       const node = renderMessage(msg);
       if (node) list.append(node);
     }
-    // Convites de xadrez são efêmeros (não vêm no histórico) — reaplica os que
-    // ainda estiverem abertos para este canal.
+    // Convites de xadrez e resultados de partida são efêmeros (não vêm no
+    // histórico) — reaplica os que forem deste canal.
     for (const invite of pendingInvites.values()) {
       if (invite.channelId === channelId) list.append(renderInviteCard(invite));
+    }
+    for (const ann of pendingAnnouncements) {
+      if (ann.channelId === channelId) list.append(renderAnnouncementCard(ann.text));
+    }
+    for (const session of pendingBotGames.values()) {
+      if (session.channelId === channelId) list.append(renderBotGameCard(session));
     }
     scrollToBottom();
   } catch (err) {
@@ -150,12 +159,14 @@ export function appendChessInvite(invite) {
   renderIfActive(invite.id);
 }
 
-/** Convite encerrado (aceito, cancelado ou expirado) — atualiza o card no lugar. */
-export function closeChessInvite(id, reason) {
+/** Convite encerrado (aceito, cancelado ou expirado) — atualiza o card no lugar.
+ * `gameId` só vem quando reason === 'started' (dá pra assistir a partida). */
+export function closeChessInvite(id, reason, gameId) {
   const invite = pendingInvites.get(id);
   if (!invite) return;
   invite.status = 'closed';
   invite.reason = reason;
+  invite.gameId = gameId;
   renderIfActive(id);
 }
 
@@ -174,14 +185,17 @@ function renderIfActive(id) {
   if (nearBottom) scrollToBottom();
 }
 
+const TIME_CONTROL_LABELS = { 60: 'Bullet 1 min', 180: 'Blitz 3 min', 300: 'Blitz 5 min', 600: 'Rapid 10 min' };
+
 function renderInviteCard(invite) {
   // O anfitrião também vê o próprio convite no chat (como no Discord).
   const isMine = invite.hostSocketId === socket.id;
+  const tcLabel = TIME_CONTROL_LABELS[invite.timeControl] || '';
 
   if (invite.status === 'closed') {
     const label =
       invite.reason === 'started'
-        ? 'Partida já começou.'
+        ? 'Partida em andamento.'
         : invite.reason === 'cancelled'
         ? isMine
           ? 'Você cancelou o convite.'
@@ -190,16 +204,27 @@ function renderInviteCard(invite) {
     return el('div', { class: 'message chess-invite closed', dataset: { inviteId: invite.id } }, [
       el('div', { class: 'message-avatar chess-invite-avatar' }, '♞'),
       el('div', { class: 'message-body' }, [
-        el('div', { class: 'chess-invite-title' }, `${invite.hostName} quer jogar Xadrez`),
+        el('div', { class: 'chess-invite-title' }, `${invite.hostName} quer jogar Xadrez (${tcLabel})`),
         el('div', { class: 'chess-invite-sub' }, label),
       ]),
+      invite.reason === 'started' && invite.gameId
+        ? el(
+            'button',
+            {
+              type: 'button',
+              class: 'btn-secondary chess-invite-watch',
+              onClick: () => spectateChessGame(invite.gameId),
+            },
+            'Assistir'
+          )
+        : null,
     ]);
   }
 
   return el('div', { class: 'message chess-invite', dataset: { inviteId: invite.id } }, [
     el('div', { class: 'message-avatar chess-invite-avatar' }, '♞'),
     el('div', { class: 'message-body' }, [
-      el('div', { class: 'chess-invite-title' }, `${invite.hostName} quer jogar Xadrez`),
+      el('div', { class: 'chess-invite-title' }, `${invite.hostName} quer jogar Xadrez (${tcLabel})`),
       el(
         'div',
         { class: 'chess-invite-sub' },
@@ -227,6 +252,84 @@ function renderInviteCard(invite) {
             onClick: (e) => acceptChessInvite(invite.id, e.currentTarget),
           },
           'Entrar'
+        ),
+  ]);
+}
+
+/** Resultado de uma partida encerrada (chess:announce) — quem venceu e por quê. */
+export function appendChessAnnouncement({ channelId, text }) {
+  pendingAnnouncements.push({ channelId, text });
+  if (channelId !== getState().activeTextChannel) return;
+  const list = document.getElementById('messages');
+  const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+  list.append(renderAnnouncementCard(text));
+  if (nearBottom) scrollToBottom();
+}
+
+function renderAnnouncementCard(text) {
+  return el('div', { class: 'message chess-invite closed' }, [
+    el('div', { class: 'message-avatar chess-invite-avatar' }, '♟'),
+    el('div', { class: 'message-body' }, [
+      el('div', { class: 'chess-invite-title' }, 'Xadrez'),
+      el('div', { class: 'chess-invite-sub' }, text),
+    ]),
+  ]);
+}
+
+/** Alguém começou uma partida contra o bot — card com "Assistir" pra quem
+ * estiver vendo o canal (o próprio anfitrião só vê um selo "Você"). */
+export function appendBotGameAnnounce(session) {
+  pendingBotGames.set(session.id, { ...session, status: 'open' });
+  renderBotGameIfActive(session.id);
+}
+
+export function closeBotGameCard(id) {
+  const session = pendingBotGames.get(id);
+  if (!session) return;
+  session.status = 'closed';
+  renderBotGameIfActive(id);
+}
+
+function renderBotGameIfActive(id) {
+  const session = pendingBotGames.get(id);
+  if (!session || session.channelId !== getState().activeTextChannel) return;
+  const card = renderBotGameCard(session);
+  const existing = document.querySelector(`.chess-botgame[data-botgame-id="${id}"]`);
+  if (existing) {
+    existing.replaceWith(card);
+    return;
+  }
+  const list = document.getElementById('messages');
+  const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+  list.append(card);
+  if (nearBottom) scrollToBottom();
+}
+
+function renderBotGameCard(session) {
+  const isMine = session.hostSocketId === socket.id;
+
+  if (session.status === 'closed') {
+    return el('div', { class: 'message chess-invite chess-botgame closed', dataset: { botgameId: session.id } }, [
+      el('div', { class: 'message-avatar chess-invite-avatar' }, '♞'),
+      el('div', { class: 'message-body' }, [
+        el('div', { class: 'chess-invite-title' }, `${session.hostName} jogou contra o bot (${session.elo})`),
+        el('div', { class: 'chess-invite-sub' }, 'Partida encerrada.'),
+      ]),
+    ]);
+  }
+
+  return el('div', { class: 'message chess-invite chess-botgame', dataset: { botgameId: session.id } }, [
+    el('div', { class: 'message-avatar chess-invite-avatar' }, '♞'),
+    el('div', { class: 'message-body' }, [
+      el('div', { class: 'chess-invite-title' }, `${session.hostName} está jogando contra o bot (${session.elo})`),
+      el('div', { class: 'chess-invite-sub' }, 'Partida solo — clique para assistir'),
+    ]),
+    isMine
+      ? el('span', { class: 'chess-invite-mine-badge' }, 'Você')
+      : el(
+          'button',
+          { type: 'button', class: 'btn-secondary chess-invite-watch', onClick: () => spectateBotGame(session.id) },
+          'Assistir'
         ),
   ]);
 }

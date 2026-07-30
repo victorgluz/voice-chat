@@ -51,3 +51,46 @@ export function showDialog({ title, message, variant = 'info', onClose } = {}) {
   document.body.append(overlay);
   okBtn.focus();
 }
+
+/**
+ * Modal de confirmação (Cancelar/Confirmar). Resolve `true` se confirmado,
+ * `false` se cancelado (backdrop, Esc ou botão Cancelar).
+ */
+export function showConfirm({ title = 'Confirmar', message, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', danger = false } = {}) {
+  return new Promise((resolve) => {
+    document.getElementById('app-dialog')?.remove();
+    let done = false;
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+
+    const cancelBtn = el('button', { class: 'btn-secondary', onClick: () => finish(false) }, cancelLabel);
+    const confirmBtn = el(
+      'button',
+      { class: `btn-secondary${danger ? ' danger' : ''}`, onClick: () => finish(true) },
+      confirmLabel
+    );
+    const overlay = el('div', { id: 'app-dialog', class: 'modal-overlay' }, [
+      el('div', { class: 'modal-card dialog-card info' }, [
+        el('div', { class: 'dialog-head' }, [el('h2', {}, title)]),
+        el('p', { class: 'dialog-message' }, message),
+        el('div', { class: 'dialog-actions' }, [cancelBtn, confirmBtn]),
+      ]),
+    ]);
+
+    function onKey(e) {
+      if (e.key === 'Escape') finish(false);
+    }
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) finish(false);
+    });
+    document.addEventListener('keydown', onKey);
+    document.body.append(overlay);
+    confirmBtn.focus();
+  });
+}

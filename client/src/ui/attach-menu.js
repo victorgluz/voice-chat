@@ -17,7 +17,7 @@ export function openAttachMenu(anchorBtn, { onMedia, onGames }) {
       closeAttachMenu();
       onMedia();
     }),
-    attachRow('gamepad', 'Jogos', () => {
+    attachRow('gamepad', 'Apps', () => {
       closeAttachMenu();
       onGames();
     }),
