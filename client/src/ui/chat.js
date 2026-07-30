@@ -223,9 +223,16 @@ function replyReference(replyId) {
 
 function attachmentNode(att) {
   if (att.mime?.startsWith('image/')) {
-    return el('a', { href: att.url, target: '_blank', rel: 'noopener' }, [
-      el('img', { class: 'attachment-image', src: att.url, alt: att.name }),
-    ]);
+    // Clicar abre num lightbox (overlay) sem sair do app.
+    return el(
+      'button',
+      {
+        class: 'attachment-image-btn',
+        title: att.name || 'Abrir imagem',
+        onClick: () => openLightbox(att.url, att.name),
+      },
+      [el('img', { class: 'attachment-image', src: att.url, alt: att.name })]
+    );
   }
   return el('a', { class: 'attachment-file', href: att.url, target: '_blank', rel: 'noopener' }, [
     el('span', { class: 'attachment-icon' }, icon('paperclip')),
@@ -238,6 +245,37 @@ function avatarNode(user) {
   if (user.avatar?.startsWith('/uploads/')) node.style.backgroundImage = `url(${user.avatar})`;
   else node.textContent = user.avatar || initials(user.name);
   return node;
+}
+
+/** Lightbox: abre a imagem em tela cheia sobre o app (fecha no fundo, X ou Esc). */
+function openLightbox(url, name) {
+  document.getElementById('image-lightbox')?.remove();
+
+  const overlay = el(
+    'div',
+    {
+      id: 'image-lightbox',
+      class: 'lightbox-overlay',
+      onClick: (e) => {
+        if (e.target === overlay) close();
+      },
+    },
+    [
+      el('img', { class: 'lightbox-img', src: url, alt: name || '' }),
+      el('button', { class: 'lightbox-close icon-btn', title: 'Fechar', onClick: close }, icon('close')),
+    ]
+  );
+
+  function close() {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+  }
+  function onKey(e) {
+    if (e.key === 'Escape') close();
+  }
+
+  document.addEventListener('keydown', onKey);
+  document.body.append(overlay);
 }
 
 // ---- edição inline ----
