@@ -3,13 +3,13 @@ import { getState, setState, subscribe } from './state.js';
 import { initLogin } from './ui/login.js';
 import { renderChannels } from './ui/channels.js';
 import { renderUsers } from './ui/users.js';
-import { initChat, setActiveChannel, appendMessage, updateMessage, removeMessage, appendChessInvite, closeChessInvite } from './ui/chat.js';
+import { initChat, setActiveChannel, appendMessage, updateMessage, removeMessage, appendChessInvite, closeChessInvite, appendChessAnnouncement, appendBotGameAnnounce, closeBotGameCard } from './ui/chat.js';
 import { initSettings } from './ui/settings.js';
 import { initSoundboard, renderSounds } from './ui/soundboard.js';
 import { initScreenShare, renderScreenList } from './ui/screen-share.js';
 import { initVideoGrid, renderVideoGrid } from './ui/video-grid.js';
 import { initGames, onMatchFound } from './ui/games.js';
-import { initChessGame, applyRemoteMove, handleChessGameOver } from './ui/chess-game.js';
+import { initChessGame, applyRemoteMove, handleChessGameOver, applyBotGameMove, handleBotGameClosed, updateChessSpectators, updateBotGameSpectators } from './ui/chess-game.js';
 import { showError, showInfo } from './ui/dialog.js';
 import { voiceClient } from './voice/voice-client.js';
 import { initials } from './util/dom.js';
@@ -94,10 +94,19 @@ function registerSocketEvents() {
   socket.on('chat:deleted', ({ id }) => removeMessage(id));
 
   socket.on('chess:invite', appendChessInvite);
-  socket.on('chess:invite:closed', ({ id, reason }) => closeChessInvite(id, reason));
+  socket.on('chess:invite:closed', ({ id, reason, gameId }) => closeChessInvite(id, reason, gameId));
   socket.on('chess:matchFound', onMatchFound);
   socket.on('chess:move', applyRemoteMove);
   socket.on('chess:gameOver', handleChessGameOver);
+  socket.on('chess:spectators', updateChessSpectators);
+  socket.on('chess:announce', appendChessAnnouncement);
+  socket.on('chess:botgame:announce', appendBotGameAnnounce);
+  socket.on('chess:botgame:closed', ({ id }) => {
+    closeBotGameCard(id);
+    handleBotGameClosed({ id });
+  });
+  socket.on('chess:botgame:move', applyBotGameMove);
+  socket.on('chess:botgame:spectators', updateBotGameSpectators);
 
   socket.on('voice:sound', ({ sound }) => voiceClient.playNotification(sound));
 

@@ -665,6 +665,8 @@ textarea, input { font-family: inherit; }
 }
 .btn-secondary:hover { background: var(--bg-hover); }
 .btn-secondary.active { background: var(--red); color: #fff; }
+.btn-secondary.danger { background: var(--red); color: #fff; }
+.btn-secondary.danger:hover { background: #d6373a; }
 .mic-meter {
   flex: 1;
   height: 10px;
@@ -959,6 +961,7 @@ textarea, input { font-family: inherit; }
 .dialog-message { color: var(--text); line-height: 1.45; word-break: break-word; }
 .dialog-actions { display: flex; justify-content: flex-end; }
 
+
 /* ---------- Usuários offline (lista lateral) ---------- */
 .member.offline { opacity: 0.45; }
 .member.offline .avatar { filter: grayscale(1); }
@@ -1088,6 +1091,41 @@ textarea, input { font-family: inherit; }
 
 @keyframes games-spin { to { transform: rotate(360deg); } }
 
+/* Seletor de tempo de partida (bullet/blitz/rapid) */
+.games-timecontrol { display: flex; flex-direction: column; gap: 10px; }
+.time-option {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+  text-align: left;
+  transition: background 0.1s;
+}
+.time-option:hover { background: var(--bg-hover); }
+.time-option-value { font-size: 16px; font-weight: 700; color: var(--text-bright); }
+.time-option-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.games-timecontrol .btn-secondary { align-self: flex-start; margin-top: 2px; }
+
+/* Seletor de rating do bot (10 níveis — grade 2 colunas, cabe mais numa tela só) */
+.games-botlevel { display: flex; flex-direction: column; gap: 12px; }
+.bot-level-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.bot-level-option {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+  text-align: left;
+  transition: background 0.1s;
+}
+.bot-level-option:hover { background: var(--bg-hover); }
+.bot-level-elo { font-size: 15px; font-weight: 700; color: var(--text-bright); }
+.bot-level-label { font-size: 12px; color: var(--text-muted); }
+.games-botlevel .btn-secondary { align-self: flex-start; }
+
 /* ---------- Xadrez ---------- */
 #chess-overlay .chess-card { width: 920px; max-width: 96vw; }
 .chess-status-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
@@ -1095,10 +1133,60 @@ textarea, input { font-family: inherit; }
 
 .chess-layout { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
 
+.chess-board-column { display: flex; flex-direction: column; gap: 8px; flex: none; width: min(80vh, 640px); max-width: 100%; }
+
+/* Relógio: só o tempo, em cima/embaixo do tabuleiro — nome/foto/capturas
+ * ficam no painel de jogadores à direita (.chess-players), não aqui. */
+.chess-clock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+}
+.chess-clock-time { font-size: 18px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.chess-clock.active { background: var(--accent); }
+.chess-clock.active .chess-clock-time { color: #fff; }
+.chess-clock.low .chess-clock-time { color: var(--red); }
+.chess-clock.active.low { background: var(--red); }
+.chess-clock.active.low .chess-clock-time { color: #fff; }
+
+/* Painel de jogadores: foto + nome + capturas, empilhado à direita do
+ * tabuleiro (em cima do painel de temas) — em vez de junto do relógio. */
+.chess-side { display: flex; flex-direction: column; gap: 16px; width: 180px; flex: none; }
+.chess-players { display: flex; flex-direction: column; gap: 8px; }
+.chess-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+  min-width: 0;
+}
+.chess-player-avatar { flex-shrink: 0; }
+.chess-player-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.chess-player-name { font-size: 13px; color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chess-player.active { background: var(--accent); }
+.chess-player.active .chess-player-name { color: #fff; }
+
+/* Peças capturadas + vantagem de material (dentro do chess-player-info) */
+.chess-player-captured { display: flex; align-items: center; gap: 1px; min-height: 14px; flex-wrap: wrap; }
+.captured-piece {
+  width: 14px;
+  height: 14px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  flex-shrink: 0;
+}
+.captured-advantage { font-size: 11px; font-weight: 700; color: var(--green); margin-left: 3px; }
+.chess-player.active .captured-advantage { color: #fff; }
+
 .chess-board {
   position: relative;
-  width: min(80vh, 640px);
-  max-width: 100%;
+  width: 100%;
   aspect-ratio: 1;
   flex: none;
   border-radius: 6px;
@@ -1120,6 +1208,20 @@ textarea, input { font-family: inherit; }
 .chess-square.selected { background: #aad4f5; z-index: 1; }
 .chess-square.in-check { box-shadow: inset 0 0 0 4px var(--red); }
 .chess-square.marked { background: rgba(235, 62, 62, 0.25); }
+.chess-square.premove { background: rgba(255, 152, 0, 0.45); }
+.coord-file, .coord-rank {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.75;
+  line-height: 1;
+}
+.coord-file { bottom: 2px; right: 3px; }
+.coord-rank { top: 2px; left: 3px; }
+.chess-square.light .coord-file, .chess-square.light .coord-rank { color: var(--sq-dark, #779556); }
+.chess-square.dark .coord-file, .chess-square.dark .coord-rank { color: var(--sq-light, #ebecd0); }
 .chess-square.move-hint::after {
   content: '';
   position: absolute;
@@ -1167,6 +1269,13 @@ textarea, input { font-family: inherit; }
 .chess-themes { display: flex; flex-direction: column; gap: 14px; width: 180px; flex: none; }
 .theme-group h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 6px; }
 .theme-swatch-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Quem está assistindo — embaixo do painel de temas, canto inferior direito. */
+.chess-watchers { display: flex; flex-direction: column; gap: 6px; }
+.chess-watchers h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 6px; }
+.chess-watchers-list { display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+.chess-watcher { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.chess-watcher span { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .theme-swatch {
   width: 52px;
@@ -1223,6 +1332,7 @@ textarea, input { font-family: inherit; }
 .chess-invite-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
 .chess-invite-join { flex-shrink: 0; }
 .chess-invite-cancel { flex-shrink: 0; }
+.chess-invite-watch { flex-shrink: 0; }
 .chess-invite-sub { display: flex; align-items: center; gap: 6px; }
 .chess-invite-spinner {
   width: 11px;
