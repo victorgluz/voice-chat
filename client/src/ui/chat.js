@@ -99,7 +99,8 @@ export async function setActiveChannel(channelId) {
     const history = await request('chat:history', { channelId });
     for (const msg of history) {
       loaded.set(msg.id, msg);
-      list.append(renderMessage(msg));
+      const node = renderMessage(msg);
+      if (node) list.append(node);
     }
     scrollToBottom();
   } catch (err) {
@@ -110,40 +111,37 @@ export async function setActiveChannel(channelId) {
 export function appendMessage(msg) {
   loaded.set(msg.id, msg);
   if (msg.channelId !== getState().activeTextChannel) return;
+  const node = renderMessage(msg);
+  if (!node) return;
   const list = document.getElementById('messages');
   const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
-  list.append(renderMessage(msg));
+  list.append(node);
   if (nearBottom) scrollToBottom();
 }
 
 export function updateMessage(msg) {
   loaded.set(msg.id, msg);
   const existing = document.querySelector(`.message[data-id="${msg.id}"]`);
-  if (existing) existing.replaceWith(renderMessage(msg));
+  if (!existing) return;
+  const node = renderMessage(msg);
+  node ? existing.replaceWith(node) : existing.remove();
 }
 
 export function removeMessage(id) {
   const msg = loaded.get(id);
   if (msg) msg.deleted = true;
-  const existing = document.querySelector(`.message[data-id="${id}"]`);
-  if (existing && msg) existing.replaceWith(renderMessage(msg));
+  document.querySelector(`.message[data-id="${id}"]`)?.remove();
 }
 
 // ---- render ----
 
 function renderMessage(msg) {
+  // Mensagem apagada não é exibida (nem placeholder).
+  if (msg.deleted) return null;
+
   const { me } = getState();
   const canModify = me && (msg.userId === me.id || me.isAdmin);
   const canEdit = me && msg.userId === me.id;
-
-  if (msg.deleted) {
-    return el('div', { class: 'message deleted', dataset: { id: msg.id } }, [
-      el('div', { class: 'message-avatar' }),
-      el('div', { class: 'message-body' }, [
-        el('div', { class: 'message-content muted' }, 'mensagem apagada'),
-      ]),
-    ]);
-  }
 
   const body = el('div', { class: 'message-body' }, [
     msg.replyTo ? replyReference(msg.replyTo) : null,
