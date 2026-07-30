@@ -24,11 +24,16 @@ export function initChat() {
   // as teclas quando a lista está aberta.
   initMentionAutocomplete(form, input);
 
-  // Enter envia; Shift+Enter quebra linha.
+  // Enter envia; Shift+Enter quebra linha. Seta pra cima (campo vazio) edita a
+  // última mensagem que enviei no canal.
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       form.requestSubmit();
+      return;
+    }
+    if (e.key === 'ArrowUp' && !input.value && input.selectionStart === 0) {
+      if (editLastOwnMessage()) e.preventDefault();
     }
   });
 
@@ -279,6 +284,21 @@ function openLightbox(url, name) {
 }
 
 // ---- edição inline ----
+
+/** Edita a última mensagem de texto que EU enviei no canal ativo. */
+function editLastOwnMessage() {
+  const { me, activeTextChannel } = getState();
+  if (!me) return false;
+  let last = null;
+  for (const msg of loaded.values()) {
+    if (msg.deleted || msg.userId !== me.id || msg.channelId !== activeTextChannel) continue;
+    if (!msg.content) continue; // sem texto (ex.: só imagem) não dá pra editar
+    if (!last || msg.createdAt > last.createdAt) last = msg;
+  }
+  if (!last) return false;
+  startEdit(last);
+  return true;
+}
 
 function startEdit(msg) {
   const node = document.querySelector(`.message[data-id="${msg.id}"] .message-content`);
