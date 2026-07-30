@@ -11,7 +11,7 @@ import { initVideoGrid, renderVideoGrid } from './ui/video-grid.js';
 import { showError, showInfo } from './ui/dialog.js';
 import { voiceClient } from './voice/voice-client.js';
 import { initials } from './util/dom.js';
-import { icon, setIcon } from './util/icons.js';
+import { setIcon } from './util/icons.js';
 
 const channelHandlers = {
   onSelectText: (id) => setActiveChannel(id),
@@ -132,11 +132,42 @@ function setupSelfPanel() {
     if (s.connected) {
       const name = getState().channels.voice.find((c) => c.id === s.channelId)?.name || '';
       status.classList.remove('hidden');
-      status
-        .querySelector('.voice-status-name')
-        .replaceChildren(icon('volume', 'inline-icon'), document.createTextNode(` ${name}`));
+      status.querySelector('.voice-status-name').textContent = name;
+      startCallTimer();
     } else {
       status.classList.add('hidden');
+      stopCallTimer();
     }
   };
+}
+
+// Cronômetro da chamada (mm:ss ou h:mm:ss), exibido no painel "Voz conectada".
+let callTimerId = null;
+let callStartedAt = 0;
+
+function startCallTimer() {
+  if (callTimerId) return; // já rodando (mudou de mute/deaf, não de call)
+  callStartedAt = Date.now();
+  const render = () => {
+    const el = document.getElementById('call-timer');
+    if (el) el.textContent = formatDuration(Date.now() - callStartedAt);
+  };
+  render();
+  callTimerId = setInterval(render, 1000);
+}
+
+function stopCallTimer() {
+  if (callTimerId) clearInterval(callTimerId);
+  callTimerId = null;
+  const el = document.getElementById('call-timer');
+  if (el) el.textContent = '';
+}
+
+function formatDuration(ms) {
+  const total = Math.floor(ms / 1000);
+  const s = total % 60;
+  const m = Math.floor(total / 60) % 60;
+  const h = Math.floor(total / 3600);
+  const pad = (n) => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }

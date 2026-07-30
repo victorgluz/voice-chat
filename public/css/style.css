@@ -204,23 +204,61 @@ textarea, input { font-family: inherit; }
 /* Painel do próprio usuário (rodapé do sidebar) */
 #self-panel { background: #232428; padding: 8px; }
 #self-panel.speaking #self-avatar { box-shadow: 0 0 0 2px var(--green); }
+/* Painel "Voz conectada" (topo): info + tempo + desligar, e a fileira de ações. */
 .voice-status {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 8px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
   margin-bottom: 6px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg-darkest);
+}
+.voice-status-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.voice-status-info { min-width: 0; display: flex; flex-direction: column; }
+.voice-status-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--green);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
 }
-.self-row { display: flex; flex-direction: column; gap: 8px; }
-.self-user { display: flex; align-items: center; gap: 8px; }
-.self-name { flex: 1; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.self-controls { display: flex; gap: 4px; justify-content: space-between; }
-.self-controls .icon-btn { flex: 1; display: flex; align-items: center; justify-content: center; }
+.voice-status-name {
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.voice-status-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.call-timer { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* Fileira de ações da call: webcam, tela, soundboard. */
+.voice-actions { display: flex; gap: 6px; }
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: 6px;
+  background: var(--bg-light);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.action-btn:hover { background: var(--bg-hover); }
+.action-btn.active { background: var(--green); color: #fff; }
+.action-btn .icon { width: 20px; height: 20px; }
+
+/* Linha inferior: avatar + nome/status à esquerda, mic/headset/config à direita. */
+.self-row { display: flex; align-items: center; gap: 8px; }
+.self-user { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.self-user-text { min-width: 0; display: flex; flex-direction: column; line-height: 1.1; }
+.self-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.self-substatus { color: var(--text-muted); font-size: 12px; }
+.self-controls { display: flex; gap: 2px; flex: none; }
 
 /* Coluna 2: chat */
 #chat { flex: 1; display: flex; flex-direction: column; background: var(--bg-mid); min-width: 0; }
@@ -660,8 +698,8 @@ textarea, input { font-family: inherit; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* ---------- Compartilhamento de tela ---------- */
-/* Botão de compartilhar e ícone "compartilhando" ativos ganham a cor de destaque. */
-#btn-screen.active { color: var(--green); }
+/* Ícone "compartilhando" na lista de membros (estado ativo do botão de ação
+   vem de .action-btn.active). */
 .mini-icon.sharing { color: var(--green); background: none; border: none; cursor: pointer; padding: 0; }
 .mini-icon.sharing.active { color: var(--accent); }
 
@@ -726,7 +764,6 @@ textarea, input { font-family: inherit; }
 
 /* ---------- Webcam (grade de vídeo na área central) ---------- */
 #chat-header #chat-title { flex: 1; }
-#btn-cam.active { color: var(--green); }
 .btn-view-toggle {
   display: inline-flex;
   align-items: center;
