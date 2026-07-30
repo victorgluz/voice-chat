@@ -37,34 +37,36 @@ export function initChat() {
     }
   });
 
-  // Colar imagem (print/copiar imagem) direto no chat: vira anexo.
+  // Colar arquivo (imagem, pdf, mp3, doc…) direto no chat: vira anexo.
   input.addEventListener('paste', (e) => {
     const cd = e.clipboardData;
     if (!cd) return;
 
-    const imgItem = [...(cd.items || [])].find(
-      (it) => it.kind === 'file' && it.type.startsWith('image/')
-    );
-    if (!imgItem) return; // sem imagem no clipboard → paste normal (texto)
+    const fileItem = [...(cd.items || [])].find((it) => it.kind === 'file');
+    if (!fileItem) return; // sem arquivo no clipboard → paste normal (texto)
 
     e.preventDefault();
-    const file = imgItem.getAsFile();
+    const file = fileItem.getAsFile();
+    if (!file) return;
 
-    // Ao copiar uma imagem da web, o navegador coloca um PNG estático (perde o
-    // GIF), mas também a URL de origem. Se houver URL, baixamos o ORIGINAL
-    // (GIF animado) pelo servidor; senão, usamos o arquivo colado (screenshot).
-    const url = imageUrlFromClipboard(cd);
-    if (url) {
-      handleAttachFromUrl(url, file);
-      return;
+    // Imagem da web: o navegador coloca um PNG estático (perde o GIF), mas
+    // também a URL de origem. Se houver URL, baixamos o ORIGINAL (GIF animado)
+    // pelo servidor; senão, usamos o próprio arquivo colado.
+    if (file.type.startsWith('image/')) {
+      const url = imageUrlFromClipboard(cd);
+      if (url) {
+        handleAttachFromUrl(url, file);
+        return;
+      }
     }
-    if (file) {
-      const named = file.name && /\.[a-z0-9]+$/i.test(file.name)
-        ? file.name
-        : `colado.${extForMime(file.type)}`;
-      handleAttach(file, named);
-    }
+    const named = file.name && /\.[a-z0-9]+$/i.test(file.name)
+      ? file.name
+      : `colado.${extForMime(file.type)}`;
+    handleAttach(file, named);
   });
+
+  // Arrastar-e-soltar arquivo em qualquer lugar do app.
+  initDropZone();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -227,8 +229,10 @@ function replyReference(replyId) {
 }
 
 function attachmentNode(att) {
-  if (att.mime?.startsWith('image/')) {
-    // Clicar abre num lightbox (overlay) sem sair do app.
+  const mime = att.mime || '';
+
+  // Imagem: miniatura que abre no lightbox.
+  if (mime.startsWith('image/')) {
     return el(
       'button',
       {
@@ -239,10 +243,121 @@ function attachmentNode(att) {
       [el('img', { class: 'attachment-image', src: att.url, alt: att.name })]
     );
   }
-  return el('a', { class: 'attachment-file', href: att.url, target: '_blank', rel: 'noopener' }, [
-    el('span', { class: 'attachment-icon' }, icon('paperclip')),
-    el('span', {}, att.name),
+
+  // Áudio: player embutido (toca no app).
+  if (mime.startsWith('audio/')) {
+    return el('div', { class: 'attachment-card attachment-audio' }, [
+      el('audio', { controls: '', preload: 'metadata', src: att.url }),
+      metaRow(att, [downloadBtn(att)]),
+    ]);
+  }
+
+  // Vídeo: player embutido.
+  if (mime.startsWith('video/')) {
+    return el('div', { class: 'attachment-card attachment-video' }, [
+      el('video', { class: 'attachment-video-el', controls: '', preload: 'metadata', src: att.url }),
+      metaRow(att, [downloadBtn(att)]),
+    ]);
+  }
+
+  // PDF: card com Abrir (modal) + Baixar.
+  if (mime === 'application/pdf') {
+    return el('div', { class: 'attachment-card' }, [
+      fileRow(att, [
+        el('button', { class: 'btn-attach', onClick: () => openPdf(att.url, att.name) }, 'Abrir'),
+        downloadBtn(att),
+      ]),
+    ]);
+  }
+
+  // Demais tipos: card só com Baixar (sem preview embutido no navegador).
+  return el('div', { class: 'attachment-card' }, [fileRow(att, [downloadBtn(att)])]);
+}
+
+/** Linha "ícone + nome/tamanho + ações" para PDFs e arquivos genéricos. */
+function fileRow(att, actions) {
+  return el('div', { class: 'attachment-file-row' }, [
+    el('span', { class: 'attachment-icon' }, icon('file')),
+    fileInfo(att),
+    el('div', { class: 'attachment-actions' }, actions),
   ]);
+}
+
+/** Linha "nome/tamanho + ações" para os cards de mídia (áudio/vídeo). */
+function metaRow(att, actions) {
+  return el('div', { class: 'attachment-meta-row' }, [
+    fileInfo(att),
+    el('div', { class: 'attachment-actions' }, actions),
+  ]);
+}
+
+function fileInfo(att) {
+  return el('div', { class: 'attachment-info' }, [
+    el('div', { class: 'attachment-name' }, att.name || 'arquivo'),
+    att.size ? el('div', { class: 'attachment-size' }, formatBytes(att.size)) : null,
+  ]);
+}
+
+/** Link de download (o atributo `download` força baixar em vez de navegar). */
+function downloadBtn(att) {
+  return el(
+    'a',
+    { class: 'btn-attach btn-download', href: att.url, download: att.name || '', title: 'Baixar' },
+    [icon('download'), ' Baixar']
+  );
+}
+
+function formatBytes(n) {
+  if (!Number.isFinite(n)) return '';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let v = n;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(i > 0 && v < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+/** PDF em overlay (iframe) dentro do app. Fecha no fundo, ✕ ou Esc. */
+function openPdf(url, name) {
+  document.getElementById('pdf-viewer')?.remove();
+
+  const overlay = el(
+    'div',
+    {
+      id: 'pdf-viewer',
+      class: 'pdf-overlay',
+      onClick: (e) => {
+        if (e.target === overlay) close();
+      },
+    },
+    [
+      el('div', { class: 'pdf-head' }, [
+        el('span', { class: 'pdf-title' }, name || 'PDF'),
+        el('div', { class: 'pdf-actions' }, [
+          el(
+            'a',
+            { class: 'btn-attach btn-download', href: url, download: name || '', title: 'Baixar' },
+            [icon('download'), ' Baixar']
+          ),
+          el('button', { class: 'icon-btn', title: 'Fechar', onClick: close }, icon('close')),
+        ]),
+      ]),
+      el('iframe', { class: 'pdf-frame', src: url, title: name || 'PDF' }),
+    ]
+  );
+
+  function close() {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+  }
+  function onKey(e) {
+    if (e.key === 'Escape') close();
+  }
+
+  document.addEventListener('keydown', onKey);
+  document.body.append(overlay);
 }
 
 function avatarNode(user) {
@@ -267,7 +382,14 @@ function openLightbox(url, name) {
     },
     [
       el('img', { class: 'lightbox-img', src: url, alt: name || '' }),
-      el('button', { class: 'lightbox-close icon-btn', title: 'Fechar', onClick: close }, icon('close')),
+      el('div', { class: 'lightbox-actions' }, [
+        el(
+          'a',
+          { class: 'icon-btn', href: url, download: name || '', title: 'Baixar', onClick: (e) => e.stopPropagation() },
+          icon('download')
+        ),
+        el('button', { class: 'icon-btn', title: 'Fechar', onClick: close }, icon('close')),
+      ]),
     ]
   );
 
@@ -459,6 +581,40 @@ function clearAttachment() {
 function scrollToBottom() {
   const list = document.getElementById('messages');
   list.scrollTop = list.scrollHeight;
+}
+
+/** Arrastar-e-soltar arquivo em qualquer lugar do app → vira anexo do composer. */
+function initDropZone() {
+  const overlay = document.getElementById('drop-overlay');
+  if (!overlay) return;
+  let depth = 0;
+  const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+
+  window.addEventListener('dragenter', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    depth++;
+    overlay.classList.remove('hidden');
+  });
+  window.addEventListener('dragover', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); // necessário para habilitar o drop
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  });
+  window.addEventListener('dragleave', () => {
+    depth = Math.max(0, depth - 1);
+    if (depth === 0) overlay.classList.add('hidden');
+  });
+  window.addEventListener('drop', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    depth = 0;
+    overlay.classList.add('hidden');
+    const files = e.dataTransfer?.files;
+    if (!files?.length) return;
+    if (files.length > 1) showError('Envie um arquivo por vez — usando o primeiro.');
+    handleAttach(files[0]);
+  });
 }
 
 /**
