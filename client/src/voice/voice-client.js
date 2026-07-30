@@ -1,5 +1,7 @@
 import { Device } from 'mediasoup-client';
 import { socket, request } from '../socket.js';
+import joinSoundUrl from '../sounds/join.mp3';
+import leaveSoundUrl from '../sounds/leave.mp3';
 
 /**
  * Cliente WebRTC/SFU. Cada participante:
@@ -28,13 +30,21 @@ export class VoiceClient {
     this.onAudioBlocked = () => {}; // navegador bloqueou o autoplay do áudio remoto
     this.onAudioResumed = () => {};
     this.onSoundboardChange = () => {}; // recebe a quantidade de sons tocando
+    this.onShareStateChange = () => {}; // recebe true/false: estou compartilhando?
+    this.onScreensChange = () => {}; // lista de telas disponíveis mudou
+    this.onWatchStart = () => {}; // (stream, user) — comecei a assistir uma tela
+    this.onWatchStop = () => {}; // parei de assistir
 
-    socket.on('voice:newProducer', ({ producerId, peerId }) => {
+    socket.on('voice:newProducer', ({ producerId, peerId, mediaType = 'mic' }) => {
       if (!this.channelId) return;
       this.producerPeer.set(producerId, peerId);
-      this._consume(producerId).catch((e) => console.warn(e));
+      this._onProducer(producerId, peerId, mediaType);
     });
     socket.on('voice:consumerClosed', ({ consumerId }) => this._removeConsumer(consumerId));
+    socket.on('voice:producerClosed', ({ producerId, peerId }) =>
+      this._onProducerClosed(producerId, peerId)
+    );
+    socket.on('voice:peerLeft', ({ peerId }) => this._onPeerLeft(peerId));
   }
 
   reset() {
@@ -50,6 +60,19 @@ export class VoiceClient {
     this.muted = false;
     this.deaf = false;
     this._vad = null;
+
+    // Compartilhamento de tela.
+    this.screenStream = null; // MediaStream local capturado (getDisplayMedia)
+    this.screenProducers = { video: null, audio: null }; // meus producers de tela
+    // Telas de OUTROS disponíveis para assistir. peerId -> { peerId, videoProducerId, audioProducerId }.
+    this.availableScreens = new Map();
+    // Tela que estou assistindo agora (só uma por vez). null ou:
+    // { peerId, consumers: [consumerId], stream }.
+    this.watching = null;
+  }
+
+  get sharing() {
+    return !!this.screenProducers.video;
   }
 
   get connected() {
@@ -69,11 +92,11 @@ export class VoiceClient {
     await this._createRecvTransport();
     await this._startMicrophone();
 
-    // Consome quem já estava no canal.
+    // Consome o áudio de quem já estava no canal e registra as telas ativas.
     const producers = await request('voice:getProducers');
-    for (const { producerId, peerId } of producers) {
+    for (const { producerId, peerId, mediaType = 'mic' } of producers) {
       this.producerPeer.set(producerId, peerId);
-      await this._consume(producerId).catch((e) => console.warn(e));
+      await this._onProducer(producerId, peerId, mediaType);
     }
 
     this._emitState();
@@ -81,6 +104,9 @@ export class VoiceClient {
 
   async leave() {
     if (!this.channelId) return;
+    // Encerra compartilhamento e visualização de tela antes de derrubar a call.
+    this.stopScreenShare();
+    this.stopWatching();
     try {
       await request('voice:leave');
     } catch {
@@ -110,6 +136,10 @@ export class VoiceClient {
   setDeaf(deaf) {
     this.deaf = deaf;
     for (const { audioEl } of this.consumers.values()) audioEl.muted = deaf;
+    // Ensurdecer também silencia o áudio da tela que estiver assistindo.
+    if (this.watching) {
+      for (const t of this.watching.stream.getAudioTracks()) t.enabled = !deaf;
+    }
     // Ensurdecer também silencia o próprio microfone (como no Discord) e,
     // ao desfazer, restaura o estado de mudo anterior.
     if (deaf) {
@@ -238,18 +268,31 @@ export class VoiceClient {
     this.onSoundboardChange(this.soundboardAudios.size);
   }
 
+  /**
+   * Som de notificação de entrada/saída da call ('join' | 'leave'). Toca na
+   * saída de áudio selecionada; não passa pelo SFU (é local, disparado por
+   * evento do servidor). Ignora falha de autoplay silenciosamente.
+   */
+  playNotification(type) {
+    const audio = new Audio(type === 'leave' ? leaveSoundUrl : joinSoundUrl);
+    audio.volume = 0.6;
+    this._applySink(audio);
+    audio.play().catch(() => {});
+  }
+
   // ---- interno ----
 
   async _createSendTransport() {
     const params = await request('voice:createTransport', { direction: 'send' });
     this.sendTransport = this.device.createSendTransport(params);
     this._wireTransport(this.sendTransport);
-    this.sendTransport.on('produce', async ({ kind, rtpParameters }, callback, errback) => {
+    this.sendTransport.on('produce', async ({ kind, rtpParameters, appData }, callback, errback) => {
       try {
         const { id } = await request('voice:produce', {
           transportId: this.sendTransport.id,
           kind,
           rtpParameters,
+          appData,
         });
         callback({ id });
       } catch (err) {
@@ -307,14 +350,62 @@ export class VoiceClient {
     this._startVad(track);
   }
 
-  async _consume(producerId) {
+  /**
+   * Roteia um producer recém-anunciado conforme o tipo de mídia: microfone é
+   * consumido automaticamente (áudio da call); tela apenas fica disponível
+   * para o usuário escolher assistir (não consome sozinha).
+   */
+  async _onProducer(producerId, peerId, mediaType) {
+    if (mediaType === 'mic') {
+      await this._consume(producerId).catch((e) => console.warn(e));
+      return;
+    }
+    // screen-video / screen-audio
+    const entry = this.availableScreens.get(peerId) || {
+      peerId,
+      videoProducerId: null,
+      audioProducerId: null,
+    };
+    if (mediaType === 'screen-video') entry.videoProducerId = producerId;
+    if (mediaType === 'screen-audio') entry.audioProducerId = producerId;
+    this.availableScreens.set(peerId, entry);
+    this.onScreensChange();
+  }
+
+  _onProducerClosed(producerId, peerId) {
+    // Atualiza a lista de telas disponíveis.
+    const entry = this.availableScreens.get(peerId);
+    if (entry) {
+      if (entry.videoProducerId === producerId) entry.videoProducerId = null;
+      if (entry.audioProducerId === producerId) entry.audioProducerId = null;
+      if (!entry.videoProducerId && !entry.audioProducerId) {
+        this.availableScreens.delete(peerId);
+      }
+      this.onScreensChange();
+    }
+    // Se eu estava assistindo essa tela, encerra a visualização.
+    if (this.watching && this.watching.peerId === peerId) this.stopWatching();
+  }
+
+  _onPeerLeft(peerId) {
+    if (this.availableScreens.delete(peerId)) this.onScreensChange();
+    if (this.watching && this.watching.peerId === peerId) this.stopWatching();
+  }
+
+  /** Consome um producer e devolve o consumer já retomado (fluxo pause→resume). */
+  async _consumeProducer(producerId) {
     const { id, kind, rtpParameters } = await request('voice:consume', {
       transportId: this.recvTransport.id,
       producerId,
       rtpCapabilities: this.device.rtpCapabilities,
     });
-
     const consumer = await this.recvTransport.consume({ id, producerId, kind, rtpParameters });
+    await request('voice:resumeConsumer', { consumerId: id });
+    return consumer;
+  }
+
+  async _consume(producerId) {
+    const consumer = await this._consumeProducer(producerId);
     const peerId = this.producerPeer.get(producerId) || producerId;
 
     const audioEl = document.createElement('audio');
@@ -325,11 +416,123 @@ export class VoiceClient {
     document.getElementById('audio-sink').append(audioEl);
     await this._applySink(audioEl);
 
-    this.consumers.set(id, { consumer, audioEl, peerId });
-    consumer.on('trackended', () => this._removeConsumer(id));
+    this.consumers.set(consumer.id, { consumer, audioEl, peerId });
+    consumer.on('trackended', () => this._removeConsumer(consumer.id));
 
-    await request('voice:resumeConsumer', { consumerId: id });
     this._tryPlay(audioEl);
+  }
+
+  // ---- compartilhamento de tela ----
+
+  /**
+   * Captura a tela (o navegador oferece o seletor nativo de janela/tela/aba) e
+   * publica como producer(s) de vídeo — e de áudio, se o usuário compartilhar o
+   * som. Exige estar num canal de voz (reutiliza o sendTransport da call).
+   */
+  async startScreenShare() {
+    if (!this.connected) throw new Error('Entre em um canal de voz para compartilhar a tela.');
+    if (this.sharing) return;
+
+    this.screenStream = await navigator.mediaDevices.getDisplayMedia({
+      // Pede framerate alto; em LAN não há gargalo de banda.
+      video: { frameRate: { ideal: 30, max: 60 } },
+      audio: true,
+    });
+
+    const videoTrack = this.screenStream.getVideoTracks()[0];
+    // "motion" instrui o encoder a priorizar fluidez (fps) em vez de detalhe.
+    // Sem isso, o padrão de tela é "detail" → cai para ~1 fps quando a taxa de
+    // bits aperta. Combinado com maxBitrate alto e degradationPreference,
+    // mantém o vídeo fluido numa rede local.
+    videoTrack.contentHint = 'motion';
+    // Prefere H264 (encoder de hardware) para não afogar a CPU; cai para o
+    // codec padrão (VP8) se o navegador não expuser H264.
+    const h264 = this.device.rtpCapabilities.codecs.find(
+      (c) => c.mimeType.toLowerCase() === 'video/h264'
+    );
+    this.screenProducers.video = await this.sendTransport.produce({
+      track: videoTrack,
+      appData: { mediaType: 'screen-video' },
+      ...(h264 ? { codec: h264 } : {}),
+      // LAN: bitrate generoso p/ manter nitidez em alta resolução.
+      encodings: [{ maxBitrate: 20_000_000 }],
+      codecOptions: { videoGoogleStartBitrate: 10000, videoGoogleMinBitrate: 5000 },
+      degradationPreference: 'maintain-framerate',
+    });
+    // Quando o usuário clica em "Parar de compartilhar" na barra nativa do navegador.
+    videoTrack.addEventListener('ended', () => this.stopScreenShare());
+
+    const audioTrack = this.screenStream.getAudioTracks()[0];
+    if (audioTrack) {
+      this.screenProducers.audio = await this.sendTransport.produce({
+        track: audioTrack,
+        appData: { mediaType: 'screen-audio' },
+        codecOptions: { opusStereo: true, opusDtx: false, opusFec: true },
+      });
+    }
+
+    socket.emit('voice:state', { sharing: true });
+    this.onShareStateChange(true);
+  }
+
+  stopScreenShare() {
+    if (!this.sharing && !this.screenStream) return;
+    for (const key of ['video', 'audio']) {
+      const producer = this.screenProducers[key];
+      if (!producer) continue;
+      request('voice:closeProducer', { producerId: producer.id }).catch(() => {});
+      try {
+        producer.close();
+      } catch {
+        /* já fechado */
+      }
+      this.screenProducers[key] = null;
+    }
+    if (this.screenStream) {
+      this.screenStream.getTracks().forEach((t) => t.stop());
+      this.screenStream = null;
+    }
+    socket.emit('voice:state', { sharing: false });
+    this.onShareStateChange(false);
+  }
+
+  /** Assiste à tela de um peer. Só uma tela por vez: fecha a anterior. */
+  async watchScreen(peerId) {
+    const entry = this.availableScreens.get(peerId);
+    if (!entry || !entry.videoProducerId) return;
+    if (this.watching && this.watching.peerId === peerId) return;
+    this.stopWatching();
+
+    const consumers = [];
+    const tracks = [];
+    const videoConsumer = await this._consumeProducer(entry.videoProducerId);
+    consumers.push(videoConsumer);
+    tracks.push(videoConsumer.track);
+    if (entry.audioProducerId) {
+      const audioConsumer = await this._consumeProducer(entry.audioProducerId);
+      consumers.push(audioConsumer);
+      const audioTrack = audioConsumer.track;
+      audioTrack.enabled = !this.deaf; // respeita ensurdecer
+      tracks.push(audioTrack);
+    }
+
+    const stream = new MediaStream(tracks);
+    this.watching = { peerId, consumers, stream };
+    for (const c of consumers) c.on('trackended', () => this.stopWatching());
+    this.onWatchStart(stream, peerId);
+  }
+
+  stopWatching() {
+    if (!this.watching) return;
+    for (const consumer of this.watching.consumers) {
+      try {
+        consumer.close();
+      } catch {
+        /* já fechado */
+      }
+    }
+    this.watching = null;
+    this.onWatchStop();
   }
 
   _applySink(audioEl) {

@@ -3,6 +3,8 @@ import { request } from '../socket.js';
 import { el, clear, initials } from '../util/dom.js';
 import { icon } from '../util/icons.js';
 import { openUserVolumeMenu } from './user-volume-menu.js';
+import { voiceClient } from '../voice/voice-client.js';
+import { showError } from './dialog.js';
 
 /** Renderiza a lista de canais de texto e voz no sidebar central. */
 export function renderChannels({ onSelectText, onJoinVoice }) {
@@ -69,6 +71,7 @@ export function renderChannels({ onSelectText, onJoinVoice }) {
             avatar(p.user),
             el('span', { class: 'voice-member-name' }, p.user.name),
             p.voice.muted ? el('span', { class: 'mini-icon', title: 'Mutado' }, icon('micOff')) : null,
+            p.voice.sharing ? sharingBtn(p) : null,
           ]
         )
       )
@@ -94,6 +97,26 @@ export function renderChannels({ onSelectText, onJoinVoice }) {
     else node.textContent = user.avatar || initials(user.name);
     return node;
   }
+
+  // Ícone de "compartilhando": clicar assiste (ou fecha) a tela dessa pessoa.
+  function sharingBtn(p) {
+    const isSelf = p.user.id === me?.id;
+    const watching = voiceClient.watching?.peerId === p.socketId;
+    return el(
+      'button',
+      {
+        class: `mini-icon sharing${watching ? ' active' : ''}`,
+        title: isSelf ? 'Você está compartilhando' : watching ? 'Parar de assistir' : 'Assistir à tela',
+        onClick: (e) => {
+          e.stopPropagation();
+          if (isSelf) return;
+          if (watching) voiceClient.stopWatching();
+          else voiceClient.watchScreen(p.socketId).catch((err) => showError(err.message));
+        },
+      },
+      icon('screen')
+    );
+  }
 }
 
 async function createChannel(type) {
@@ -107,5 +130,5 @@ async function createChannel(type) {
 }
 
 function alertErr(err) {
-  alert(err.message || String(err));
+  showError(err.message || String(err));
 }

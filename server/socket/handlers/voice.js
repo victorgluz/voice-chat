@@ -41,6 +41,9 @@ export function registerVoiceHandlers(io, socket) {
       state.setVoiceChannel(socket.id, channelId);
       socket.join(roomName(channelId));
 
+      // Som de entrada para todos no canal (incluindo quem acabou de entrar).
+      io.to(roomName(channelId)).emit('voice:sound', { sound: 'join' });
+
       broadcastPresence();
       return { rtpCapabilities: room.rtpCapabilities };
     })(data)
@@ -71,13 +74,19 @@ export function registerVoiceHandlers(io, socket) {
   );
 
   socket.on('voice:produce', (data, cb) =>
-    ack(cb, async ({ transportId, kind, rtpParameters }) => {
+    ack(cb, async ({ transportId, kind, rtpParameters, appData }) => {
       const room = requireRoom();
       const peer = requirePeer(room);
       const transport = peer.transports.get(transportId);
       if (!transport) throw new Error('Transport não encontrado.');
 
-      const producer = await transport.produce({ kind, rtpParameters });
+      // mediaType distingue microfone de compartilhamento de tela (vídeo/áudio).
+      const mediaType = appData?.mediaType || 'mic';
+      const producer = await transport.produce({
+        kind,
+        rtpParameters,
+        appData: { mediaType },
+      });
       peer.producers.set(producer.id, producer);
 
       producer.on('transportclose', () => {
@@ -88,9 +97,33 @@ export function registerVoiceHandlers(io, socket) {
       socket.to(roomName(room.id)).emit('voice:newProducer', {
         producerId: producer.id,
         peerId: socket.id,
+        mediaType,
       });
 
       return { id: producer.id };
+    })(data)
+  );
+
+  // Fecha um producer específico (ex.: parar de compartilhar a tela). Producers
+  // de mic normalmente só fecham no disconnect; este é o caminho explícito.
+  socket.on('voice:closeProducer', (data, cb) =>
+    ack(cb, async ({ producerId }) => {
+      const room = requireRoom();
+      const peer = requirePeer(room);
+      const producer = peer.producers.get(producerId);
+      if (!producer) throw new Error('Producer não encontrado.');
+
+      const mediaType = producer.appData?.mediaType || 'mic';
+      producer.close();
+      peer.producers.delete(producerId);
+
+      socket.to(roomName(room.id)).emit('voice:producerClosed', {
+        producerId,
+        peerId: socket.id,
+        mediaType,
+      });
+
+      return { closed: true };
     })(data)
   );
 
@@ -146,14 +179,15 @@ export function registerVoiceHandlers(io, socket) {
     })(data)
   );
 
-  // Estado de voz reportado pelo cliente (mute/deaf/voice-activity).
-  socket.on('voice:state', ({ muted, deaf, speaking } = {}) => {
+  // Estado de voz reportado pelo cliente (mute/deaf/voice-activity/sharing).
+  socket.on('voice:state', ({ muted, deaf, speaking, sharing } = {}) => {
     const presence = state.getPresence(socket.id);
     if (!presence || !presence.voiceChannelId) return;
     const partial = {};
     if (typeof muted === 'boolean') partial.muted = muted;
     if (typeof deaf === 'boolean') partial.deaf = deaf;
     if (typeof speaking === 'boolean') partial.speaking = speaking;
+    if (typeof sharing === 'boolean') partial.sharing = sharing;
     state.setVoiceState(socket.id, partial);
     broadcastPresence();
   });
@@ -183,6 +217,9 @@ export function registerVoiceHandlers(io, socket) {
 
   async function leave(channelId) {
     if (!channelId) return { left: false };
+    // Som de saída para todos no canal (incluindo quem está saindo, que ainda
+    // está no room neste instante). No disconnect, só os que ficam o ouvem.
+    io.to(roomName(channelId)).emit('voice:sound', { sound: 'leave' });
     socket.to(roomName(channelId)).emit('voice:peerLeft', { peerId: socket.id });
     socket.leave(roomName(channelId));
     mediasoupServer.leaveRoom(channelId, socket.id);

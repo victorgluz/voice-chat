@@ -46,6 +46,8 @@ const PATHS = {
   stop: '<rect x="5" y="5" width="14" height="14" rx="2"/>',
   scissors:
     '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" x2="8.12" y1="4" y2="15.88"/><line x1="14.47" x2="20" y1="14.48" y2="20"/><line x1="8.12" x2="12" y1="8.12" y2="12"/>',
+  screen:
+    '<rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
 };
 
 function svgMarkup(name, className) {

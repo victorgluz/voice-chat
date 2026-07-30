@@ -4,6 +4,7 @@ import { el, clear } from '../util/dom.js';
 import { icon } from '../util/icons.js';
 import { voiceClient } from '../voice/voice-client.js';
 import { decodeAudio, createTrimmer, trimToWavBlob, closeAudioContext } from '../util/audio-trim.js';
+import { showError } from './dialog.js';
 
 /**
  * Soundboard: biblioteca global de sons. Qualquer um adiciona; tocar faz o som
@@ -217,7 +218,7 @@ export function renderSounds() {
           {
             class: 'sound-play',
             title: s.uploaderName ? `${s.name} — por ${s.uploaderName}` : s.name,
-            onClick: () => request('soundboard:play', { id: s.id }).catch((err) => alert(err.message)),
+            onClick: () => request('soundboard:play', { id: s.id }).catch((err) => showError(err.message)),
           },
           [el('span', { class: 'sound-name' }, s.name)]
         ),
@@ -229,7 +230,7 @@ export function renderSounds() {
                 title: 'Apagar',
                 onClick: () => {
                   if (confirm(`Apagar "${s.name}"?`)) {
-                    request('soundboard:delete', { id: s.id }).catch((err) => alert(err.message));
+                    request('soundboard:delete', { id: s.id }).catch((err) => showError(err.message));
                   }
                 },
               },

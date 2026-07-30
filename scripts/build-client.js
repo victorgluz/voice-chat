@@ -16,6 +16,10 @@ const options = {
   platform: 'browser',
   sourcemap: true,
   logLevel: 'info',
+  // Assets (ex.: sons .mp3) são copiados para public/js e importados como URL.
+  loader: { '.mp3': 'file' },
+  publicPath: '/js',
+  assetNames: '[name]-[hash]',
 };
 
 if (watch) {

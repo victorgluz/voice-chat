@@ -216,9 +216,11 @@ textarea, input { font-family: inherit; }
   font-size: 13px;
   font-weight: 600;
 }
-.self-row { display: flex; align-items: center; gap: 8px; }
+.self-row { display: flex; flex-direction: column; gap: 8px; }
+.self-user { display: flex; align-items: center; gap: 8px; }
 .self-name { flex: 1; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.self-controls { display: flex; gap: 2px; }
+.self-controls { display: flex; gap: 4px; justify-content: space-between; }
+.self-controls .icon-btn { flex: 1; display: flex; align-items: center; justify-content: center; }
 
 /* Coluna 2: chat */
 #chat { flex: 1; display: flex; flex-direction: column; background: var(--bg-mid); min-width: 0; }
@@ -656,6 +658,89 @@ textarea, input { font-family: inherit; }
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--bg-darkest); border-radius: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- Compartilhamento de tela ---------- */
+/* Botão de compartilhar e ícone "compartilhando" ativos ganham a cor de destaque. */
+#btn-screen.active { color: var(--green); }
+.mini-icon.sharing { color: var(--green); background: none; border: none; cursor: pointer; padding: 0; }
+.mini-icon.sharing.active { color: var(--accent); }
+
+/* Lista flutuante de telas disponíveis (canto inferior direito). */
+.screen-list {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 65;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-dark);
+  border: 1px solid var(--bg-darkest);
+  border-radius: var(--radius);
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  max-width: 240px;
+}
+.screen-list-head { font-size: 12px; color: var(--text-muted); padding: 2px 4px; }
+.screen-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  text-align: left;
+  font: inherit;
+}
+.screen-item:hover { background: var(--bg-hover); }
+.screen-item.active { background: var(--accent); color: #fff; }
+.screen-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Overlay em tela cheia com o vídeo da tela assistida. */
+.screen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.92);
+}
+.screen-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  color: var(--text-bright);
+}
+.screen-overlay-title { font-size: 15px; font-weight: 600; }
+.screen-video {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  object-fit: contain;
+  background: #000;
+}
+
+/* ---------- Diálogos (substituem alert) ---------- */
+#app-dialog { z-index: 90; }
+.dialog-card { width: 360px; gap: 14px; }
+.dialog-head { display: flex; align-items: center; gap: 10px; }
+.dialog-head h2 { font-size: 17px; color: var(--text-bright); }
+.dialog-icon {
+  display: grid;
+  place-items: center;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  flex: none;
+}
+.dialog-icon .icon { width: 18px; height: 18px; }
+.dialog-icon.error { background: rgba(242, 63, 66, 0.15); color: var(--red); }
+.dialog-icon.info { background: rgba(88, 101, 242, 0.15); color: var(--accent); }
+.dialog-message { color: var(--text); line-height: 1.45; word-break: break-word; }
+.dialog-actions { display: flex; justify-content: flex-end; }
 
 /* ---------- Responsivo ---------- */
 @media (max-width: 900px) {

@@ -34,13 +34,17 @@ export class Room {
     return this.router.rtpCapabilities;
   }
 
-  /** IDs de todos os producers de áudio de OUTROS peers. */
+  /** IDs de todos os producers de OUTROS peers, com o tipo de mídia. */
   otherProducers(peerId) {
     const list = [];
     for (const peer of this.peers.values()) {
       if (peer.id === peerId) continue;
       for (const producer of peer.producers.values()) {
-        list.push({ producerId: producer.id, peerId: peer.id });
+        list.push({
+          producerId: producer.id,
+          peerId: peer.id,
+          mediaType: producer.appData?.mediaType || 'mic',
+        });
       }
     }
     return list;

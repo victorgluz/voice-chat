@@ -89,7 +89,9 @@ export const config = {
       rtcMaxPort: Number(process.env.RTC_MAX_PORT) || 49999,
     },
 
-    // Este é um app de voz: apenas Opus. Sem vídeo => menos CPU/banda.
+    // Voz (Opus) + vídeo (VP8) para compartilhamento de tela. O áudio da tela
+    // reutiliza o mesmo codec Opus; o vídeo usa VP8 (suporte universal, sem
+    // tuning). Sem screen share ativo, nenhum producer de vídeo é criado.
     router: {
       mediaCodecs: [
         {
@@ -103,6 +105,29 @@ export const config = {
             usedtx: 1,
           },
         },
+        // H264 primeiro: liga o encoder de HARDWARE na maioria das GPUs, o que
+        // evita o gargalo de CPU do VP8 por software (que derrubava a resolução
+        // para manter o framerate). VP8 fica como fallback.
+        {
+          kind: 'video',
+          mimeType: 'video/H264',
+          clockRate: 90000,
+          parameters: {
+            'packetization-mode': 1,
+            // Level 5.2 (0x34): sem o teto de 720p do Level 3.1 (0x1f), que
+            // fazia o encoder reduzir monitores 1080p/1440p/4K para 720p e
+            // borrar a imagem em tela cheia. 5.2 libera até 4K.
+            'profile-level-id': '42e034',
+            'level-asymmetry-allowed': 1,
+            'x-google-start-bitrate': 5000,
+          },
+        },
+        {
+          kind: 'video',
+          mimeType: 'video/VP8',
+          clockRate: 90000,
+          parameters: {},
+        },
       ],
     },
 
@@ -113,8 +138,11 @@ export const config = {
       enableUdp: true,
       enableTcp: true,
       preferUdp: true,
-      initialAvailableOutgoingBitrate: 600000,
-      maxIncomingBitrate: 1500000,
+      // LAN: banda não é gargalo. Valores altos evitam que o SFU limite a
+      // taxa do compartilhamento de tela (o que derrubava o framerate p/ ~1fps).
+      // Overridable via env p/ redes mais restritas.
+      initialAvailableOutgoingBitrate: Number(process.env.RTC_INITIAL_BITRATE) || 20000000,
+      maxIncomingBitrate: Number(process.env.RTC_MAX_INCOMING_BITRATE) || 25000000,
     },
   },
 };

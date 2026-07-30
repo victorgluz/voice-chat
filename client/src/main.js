@@ -6,6 +6,8 @@ import { renderUsers } from './ui/users.js';
 import { initChat, setActiveChannel, appendMessage, updateMessage, removeMessage } from './ui/chat.js';
 import { initSettings } from './ui/settings.js';
 import { initSoundboard, renderSounds } from './ui/soundboard.js';
+import { initScreenShare, renderScreenList } from './ui/screen-share.js';
+import { showError, showInfo } from './ui/dialog.js';
 import { voiceClient } from './voice/voice-client.js';
 import { initials } from './util/dom.js';
 import { icon, setIcon } from './util/icons.js';
@@ -24,6 +26,7 @@ subscribe(() => {
     renderChannels(channelHandlers);
     renderUsers();
     renderSounds();
+    renderScreenList();
   }
 });
 
@@ -42,6 +45,7 @@ function boot(loginData) {
   setupSelfPanel();
   initSettings();
   initSoundboard();
+  initScreenShare();
   initChat();
 
   const firstText = loginData.channels.text[0];
@@ -66,13 +70,14 @@ function registerSocketEvents() {
   socket.on('chat:updated', updateMessage);
   socket.on('chat:deleted', ({ id }) => removeMessage(id));
 
+  socket.on('voice:sound', ({ sound }) => voiceClient.playNotification(sound));
+
   socket.on('voice:forceJoin', ({ channelId }) => joinVoice(channelId));
   socket.on('voice:forceLeave', () => voiceClient.leave());
   socket.on('voice:forceMute', ({ muted }) => voiceClient.setMuted(muted));
 
   socket.on('kicked', ({ reason }) => {
-    alert(reason);
-    location.reload();
+    showInfo(reason, 'Você foi desconectado', { onClose: () => location.reload() });
   });
 
   socket.on('connect_error', (err) => console.warn('Socket erro:', err.message));
@@ -83,7 +88,7 @@ async function joinVoice(channelId) {
   try {
     await voiceClient.join(channelId);
   } catch (err) {
-    alert('Não foi possível entrar no canal de voz: ' + err.message);
+    showError('Não foi possível entrar no canal de voz: ' + err.message);
   }
 }
 

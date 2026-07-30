@@ -3,6 +3,7 @@ import { request } from '../socket.js';
 import { el, clear, initials, formatTime } from '../util/dom.js';
 import { renderMarkdown } from '../util/markdown.js';
 import { icon } from '../util/icons.js';
+import { showError } from './dialog.js';
 
 let pendingAttachment = null;
 const loaded = new Map(); // id -> message (para resolver respostas)
@@ -62,7 +63,7 @@ export function initChat() {
       clearAttachment();
       cancelReply();
     } catch (err) {
-      alert(err.message);
+      showError(err.message);
     }
   });
 }
@@ -145,7 +146,7 @@ function renderMessage(msg) {
     canModify
       ? el('button', {
           class: 'icon-btn danger', title: 'Apagar',
-          onClick: () => request('chat:delete', { id: msg.id }).catch((e) => alert(e.message)),
+          onClick: () => request('chat:delete', { id: msg.id }).catch((e) => showError(e.message)),
         }, icon('trash'))
       : null,
   ]);
@@ -198,7 +199,7 @@ function startEdit(msg) {
       try {
         await request('chat:edit', { id: msg.id, content });
       } catch (err) {
-        alert(err.message);
+        showError(err.message);
       }
     }
     updateMessage(loaded.get(msg.id));
@@ -257,7 +258,7 @@ async function handleAttach(file, filename) {
     // Foca o campo para que Enter envie mesmo sem digitar texto.
     document.getElementById('composer-input').focus();
   } catch (err) {
-    alert(err.message);
+    showError(err.message);
   }
 }
 

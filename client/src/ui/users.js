@@ -3,6 +3,7 @@ import { request } from '../socket.js';
 import { el, clear, initials } from '../util/dom.js';
 import { icon } from '../util/icons.js';
 import { openUserVolumeMenu } from './user-volume-menu.js';
+import { showError } from './dialog.js';
 
 /** Coluna direita: quem está online, status e canal de voz atual. */
 export function renderUsers() {
@@ -32,6 +33,7 @@ export function renderUsers() {
       ]),
       p.voice.muted ? el('span', { class: 'mini-icon', title: 'Mutado' }, icon('micOff')) : null,
       p.voice.deaf ? el('span', { class: 'mini-icon', title: 'Ensurdecido' }, icon('headphones')) : null,
+      p.voice.sharing ? el('span', { class: 'mini-icon sharing', title: 'Compartilhando a tela' }, icon('screen')) : null,
       me?.isAdmin && !isSelf ? adminMenu(p) : null,
     ]);
     // Botão direito: ajustar volume de voz/efeitos dessa pessoa (menos você mesmo).
@@ -76,5 +78,5 @@ export function renderUsers() {
 }
 
 function call(event, payload) {
-  request(event, payload).catch((err) => alert(err.message));
+  request(event, payload).catch((err) => showError(err.message));
 }
