@@ -1,5 +1,6 @@
 import { Device } from 'mediasoup-client';
 import { socket, request } from '../socket.js';
+import { NoiseSuppressor } from './noise-suppressor.js';
 
 /**
  * Cliente WebRTC/SFU. Cada participante:
@@ -14,6 +15,7 @@ export class VoiceClient {
     // Preferências de dispositivo (persistem entre calls e sessões).
     this.inputDeviceId = localStorage.getItem('voice.inputDeviceId') || null;
     this.outputDeviceId = localStorage.getItem('voice.outputDeviceId') || null;
+    this.noiseSuppression = localStorage.getItem('voice.noiseSuppression') !== 'false';
 
     // Sons do soundboard tocando agora (podem ser vários ao mesmo tempo).
     // Cada item é { audioEl, peerId }. Independentes da call, por isso ficam
@@ -44,6 +46,7 @@ export class VoiceClient {
     this.recvTransport = null;
     this.producer = null;
     this.micStream = null;
+    this._noiseSuppr = null;
     this.consumers = new Map(); // consumerId -> { consumer, audioEl, peerId }
     this.producerPeer = new Map(); // producerId -> peerId (socketId)
     this.volumes = new Map(); // peerId -> 0..1
@@ -87,6 +90,8 @@ export class VoiceClient {
       /* servidor pode já ter limpado */
     }
     this._stopVad();
+    this._noiseSuppr?.dispose();
+    this._noiseSuppr = null;
     // Ao sair da call, os efeitos/sons param imediatamente para este usuário.
     this.stopSound();
     if (this.micStream) this.micStream.getTracks().forEach((t) => t.stop());
@@ -157,15 +162,20 @@ export class VoiceClient {
     if (!this.producer || !this.sendTransport) return;
 
     const newStream = await this._getMicStream();
-    const newTrack = newStream.getAudioTracks()[0];
-    await this.producer.replaceTrack({ track: newTrack });
-    newTrack.enabled = !this.muted;
+    const rawTrack = newStream.getAudioTracks()[0];
+
+    this._noiseSuppr?.dispose();
+    this._noiseSuppr = null;
+    const produceTrack = await this._processTrack(rawTrack);
+
+    await this.producer.replaceTrack({ track: produceTrack });
+    rawTrack.enabled = !this.muted;
 
     if (this.micStream) this.micStream.getTracks().forEach((t) => t.stop());
     this.micStream = newStream;
 
     this._stopVad();
-    this._startVad(newTrack);
+    this._startVad(rawTrack);
   }
 
   /** Troca a saída de áudio (fone/alto-falante) de todos os participantes. */
@@ -175,6 +185,30 @@ export class VoiceClient {
     await Promise.all(
       [...this.consumers.values()].map(({ audioEl }) => this._applySink(audioEl))
     );
+  }
+
+  /** Liga/desliga a supressão de ruído RNNoise. Aplica ao vivo se em call. */
+  async setNoiseSuppression(enabled) {
+    this.noiseSuppression = enabled;
+    localStorage.setItem('voice.noiseSuppression', String(enabled));
+
+    if (!this.producer || !this.sendTransport) return;
+
+    const newStream = await this._getMicStream();
+    const rawTrack = newStream.getAudioTracks()[0];
+
+    this._noiseSuppr?.dispose();
+    this._noiseSuppr = null;
+    const produceTrack = await this._processTrack(rawTrack);
+
+    await this.producer.replaceTrack({ track: produceTrack });
+    rawTrack.enabled = !this.muted;
+
+    if (this.micStream) this.micStream.getTracks().forEach((t) => t.stop());
+    this.micStream = newStream;
+
+    this._stopVad();
+    this._startVad(rawTrack);
   }
 
   /** Retoma o áudio remoto após um gesto do usuário (contorna o autoplay). */
@@ -275,7 +309,8 @@ export class VoiceClient {
   _micConstraints() {
     const audio = {
       echoCancellation: true,
-      noiseSuppression: true,
+      // Desativa o NS nativo quando o RNNoise estiver ativo para evitar duplo processamento.
+      noiseSuppression: !this.noiseSuppression,
       autoGainControl: true,
     };
     if (this.inputDeviceId) audio.deviceId = { exact: this.inputDeviceId };
@@ -296,15 +331,22 @@ export class VoiceClient {
     }
   }
 
+  async _processTrack(rawTrack) {
+    if (!this.noiseSuppression) return rawTrack;
+    this._noiseSuppr = new NoiseSuppressor();
+    return this._noiseSuppr.process(rawTrack);
+  }
+
   async _startMicrophone() {
     this.micStream = await this._getMicStream();
-    const track = this.micStream.getAudioTracks()[0];
+    const rawTrack = this.micStream.getAudioTracks()[0];
+    const produceTrack = await this._processTrack(rawTrack);
     this.producer = await this.sendTransport.produce({
-      track,
+      track: produceTrack,
       codecOptions: { opusStereo: false, opusDtx: true, opusFec: true },
     });
     if (this.muted) this.producer.pause();
-    this._startVad(track);
+    this._startVad(rawTrack);
   }
 
   async _consume(producerId) {
