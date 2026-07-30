@@ -5,8 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <title>LOCALL</title>
-    <link rel="stylesheet" href="/css/style.css?v=chess-features-11" />
+    <link rel="stylesheet" href="/css/style.css?v=chess-features-12" />
     <link id="favicon" rel="icon" href="/images/locall-favicon.png" />
+
+    <!-- Ícone ao adicionar à tela inicial (iOS) e manifest (Android/PWA) -->
+    <link rel="apple-touch-icon" href="/images/locall-favicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1e1f22" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="LOCALL" />
   </head>
   <body>
     <!-- Tela de login / cadastro -->
@@ -85,8 +94,10 @@
       <!-- Coluna 2: chat -->
       <main id="chat">
         <header id="chat-header">
+          <button id="btn-mobile-channels" class="icon-btn mobile-only" title="Canais" aria-label="Abrir canais"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
           <span id="chat-title"></span>
           <button id="btn-view-toggle" class="btn-view-toggle hidden" title="Alternar vídeo/chat"></button>
+          <button id="btn-mobile-members" class="icon-btn mobile-only" title="Membros" aria-label="Abrir membros"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
         </header>
         <div id="video-stage" class="video-stage hidden"></div>
         <div id="messages"></div>
@@ -113,6 +124,9 @@
 
       <!-- Coluna 3: usuários -->
       <aside id="members"></aside>
+
+      <!-- Fundo que fecha as gavetas no mobile -->
+      <div id="mobile-backdrop" class="mobile-backdrop hidden"></div>
     </div>
 
     <!-- Elementos <audio> dos participantes de voz ficam aqui (ocultos) -->

@@ -15,8 +15,14 @@ import { voiceClient } from './voice/voice-client.js';
 import { initials } from './util/dom.js';
 import { setIcon } from './util/icons.js';
 
+// Fecha as gavetas do mobile (preenchido por initMobileNav).
+let mobileCloseDrawers = () => {};
+
 const channelHandlers = {
-  onSelectText: (id) => setActiveChannel(id),
+  onSelectText: (id) => {
+    setActiveChannel(id);
+    mobileCloseDrawers(); // no mobile, mostra o chat após escolher o canal
+  },
   onJoinVoice: (id) => joinVoice(id),
 };
 
@@ -55,6 +61,7 @@ function boot(loginData) {
   initChat();
   initGames();
   initChessGame();
+  initMobileNav();
 
   const firstText = loginData.channels.text[0];
   if (firstText) setActiveChannel(firstText.id);
@@ -128,6 +135,33 @@ async function joinVoice(channelId) {
   } catch (err) {
     showError('Não foi possível entrar no canal de voz: ' + err.message);
   }
+}
+
+// Navegação mobile: gavetas de canais (esquerda) e membros (direita).
+function initMobileNav() {
+  const app = document.getElementById('app');
+  const backdrop = document.getElementById('mobile-backdrop');
+  if (!app || !backdrop) return;
+
+  const close = () => {
+    app.classList.remove('show-sidebar', 'show-members');
+    backdrop.classList.add('hidden');
+  };
+  const toggle = (cls) => {
+    const willOpen = !app.classList.contains(cls);
+    app.classList.remove('show-sidebar', 'show-members');
+    if (willOpen) {
+      app.classList.add(cls);
+      backdrop.classList.remove('hidden');
+    } else {
+      backdrop.classList.add('hidden');
+    }
+  };
+
+  document.getElementById('btn-mobile-channels')?.addEventListener('click', () => toggle('show-sidebar'));
+  document.getElementById('btn-mobile-members')?.addEventListener('click', () => toggle('show-members'));
+  backdrop.addEventListener('click', close);
+  mobileCloseDrawers = close;
 }
 
 function setupSelfPanel() {
