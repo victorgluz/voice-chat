@@ -34,18 +34,30 @@ export function initChat() {
 
   // Colar imagem (print/copiar imagem) direto no chat: vira anexo.
   input.addEventListener('paste', (e) => {
-    for (const item of e.clipboardData?.items || []) {
-      if (item.kind === 'file' && item.type.startsWith('image/')) {
-        const file = item.getAsFile();
-        if (file) {
-          e.preventDefault();
-          const named = file.name && /\.[a-z0-9]+$/i.test(file.name)
-            ? file.name
-            : `colado.${extForMime(file.type)}`;
-          handleAttach(file, named);
-        }
-        return;
-      }
+    const cd = e.clipboardData;
+    if (!cd) return;
+
+    const imgItem = [...(cd.items || [])].find(
+      (it) => it.kind === 'file' && it.type.startsWith('image/')
+    );
+    if (!imgItem) return; // sem imagem no clipboard → paste normal (texto)
+
+    e.preventDefault();
+    const file = imgItem.getAsFile();
+
+    // Ao copiar uma imagem da web, o navegador coloca um PNG estático (perde o
+    // GIF), mas também a URL de origem. Se houver URL, baixamos o ORIGINAL
+    // (GIF animado) pelo servidor; senão, usamos o arquivo colado (screenshot).
+    const url = imageUrlFromClipboard(cd);
+    if (url) {
+      handleAttachFromUrl(url, file);
+      return;
+    }
+    if (file) {
+      const named = file.name && /\.[a-z0-9]+$/i.test(file.name)
+        ? file.name
+        : `colado.${extForMime(file.type)}`;
+      handleAttach(file, named);
     }
   });
 
@@ -292,8 +304,59 @@ function extForMime(mime) {
   return MIME_EXT[mime] || 'png';
 }
 
+let previewUrl = null; // object URL do preview local (revogado ao trocar/limpar)
+
+/** Extrai a URL de imagem de origem do clipboard (text/html ou uri-list). */
+function imageUrlFromClipboard(cd) {
+  const html = cd.getData('text/html');
+  if (html) {
+    const img = new DOMParser().parseFromString(html, 'text/html').querySelector('img');
+    if (img?.src && /^https?:\/\//i.test(img.src)) return img.src;
+  }
+  const uri = (cd.getData('text/uri-list') || '').trim();
+  if (/^https?:\/\/\S+$/i.test(uri)) return uri;
+  return null;
+}
+
+/**
+ * Baixa uma imagem por URL (via servidor) e usa como anexo — preserva GIF
+ * animado. Em caso de falha, cai para o arquivo colado (PNG estático), se houver.
+ */
+async function handleAttachFromUrl(url, fallbackFile) {
+  revokePreview();
+  showAttachmentChip('imagem…', url); // preview instantâneo com a própria URL
+  try {
+    const res = await fetch('/api/upload/url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Falha ao baixar a imagem.');
+    pendingAttachment = json;
+    showAttachmentChip(json.name || 'imagem', json.mime?.startsWith('image/') ? json.url : null);
+    document.getElementById('composer-input').focus();
+  } catch (err) {
+    if (fallbackFile) {
+      const named = fallbackFile.name && /\.[a-z0-9]+$/i.test(fallbackFile.name)
+        ? fallbackFile.name
+        : `colado.${extForMime(fallbackFile.type)}`;
+      return handleAttach(fallbackFile, named);
+    }
+    showError(err.message);
+    clearAttachment();
+  }
+}
+
 async function handleAttach(file, filename) {
   if (!file) return;
+  const isImage = file.type?.startsWith('image/');
+
+  // Preview instantâneo a partir do arquivo local (antes mesmo do upload).
+  revokePreview();
+  if (isImage) previewUrl = URL.createObjectURL(file);
+  showAttachmentChip(filename || file.name || 'arquivo', isImage ? previewUrl : null);
+
   const body = new FormData();
   body.append('file', file, filename || file.name || 'arquivo');
   try {
@@ -301,22 +364,38 @@ async function handleAttach(file, filename) {
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || 'Falha no upload.');
     pendingAttachment = json;
-    showAttachmentChip(json.name || 'arquivo');
+    // Após o upload, mantém a mesma miniatura (o preview local já basta).
+    showAttachmentChip(json.name || 'arquivo', isImage ? previewUrl : null);
     // Foca o campo para que Enter envie mesmo sem digitar texto.
     document.getElementById('composer-input').focus();
   } catch (err) {
     showError(err.message);
+    clearAttachment();
   }
 }
 
-function showAttachmentChip(name) {
+function showAttachmentChip(name, imageUrl = null) {
   const chip = document.getElementById('attach-chip');
+  const thumb = document.getElementById('attach-thumb');
   chip.classList.remove('hidden');
   chip.querySelector('.attach-name').textContent = name;
+  if (imageUrl) {
+    thumb.src = imageUrl;
+    thumb.classList.remove('hidden');
+  } else {
+    thumb.removeAttribute('src');
+    thumb.classList.add('hidden');
+  }
+}
+
+function revokePreview() {
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null;
 }
 
 function clearAttachment() {
   pendingAttachment = null;
+  revokePreview();
   document.getElementById('attach-input').value = '';
   document.getElementById('attach-chip').classList.add('hidden');
 }
