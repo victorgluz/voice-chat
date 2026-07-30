@@ -72,6 +72,7 @@ export function renderChannels({ onSelectText, onJoinVoice }) {
             el('span', { class: 'voice-member-name' }, p.user.name),
             p.voice.muted ? el('span', { class: 'mini-icon', title: 'Mutado' }, icon('micOff')) : null,
             p.voice.sharing ? sharingBtn(p) : null,
+            p.voice.cam ? el('span', { class: 'mini-icon sharing', title: 'Câmera ligada' }, icon('video')) : null,
           ]
         )
       )

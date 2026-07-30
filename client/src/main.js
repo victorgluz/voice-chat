@@ -7,6 +7,7 @@ import { initChat, setActiveChannel, appendMessage, updateMessage, removeMessage
 import { initSettings } from './ui/settings.js';
 import { initSoundboard, renderSounds } from './ui/soundboard.js';
 import { initScreenShare, renderScreenList } from './ui/screen-share.js';
+import { initVideoGrid, renderVideoGrid } from './ui/video-grid.js';
 import { showError, showInfo } from './ui/dialog.js';
 import { voiceClient } from './voice/voice-client.js';
 import { initials } from './util/dom.js';
@@ -27,6 +28,7 @@ subscribe(() => {
     renderUsers();
     renderSounds();
     renderScreenList();
+    renderVideoGrid();
   }
 });
 
@@ -46,6 +48,7 @@ function boot(loginData) {
   initSettings();
   initSoundboard();
   initScreenShare();
+  initVideoGrid();
   initChat();
 
   const firstText = loginData.channels.text[0];

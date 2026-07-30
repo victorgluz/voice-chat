@@ -16,6 +16,7 @@ export class VoiceClient {
     // Preferências de dispositivo (persistem entre calls e sessões).
     this.inputDeviceId = localStorage.getItem('voice.inputDeviceId') || null;
     this.outputDeviceId = localStorage.getItem('voice.outputDeviceId') || null;
+    this.videoDeviceId = localStorage.getItem('voice.videoDeviceId') || null;
 
     // Sons do soundboard tocando agora (podem ser vários ao mesmo tempo).
     // Cada item é { audioEl, peerId }. Independentes da call, por isso ficam
@@ -34,6 +35,8 @@ export class VoiceClient {
     this.onScreensChange = () => {}; // lista de telas disponíveis mudou
     this.onWatchStart = () => {}; // (stream, user) — comecei a assistir uma tela
     this.onWatchStop = () => {}; // parei de assistir
+    this.onCamStateChange = () => {}; // recebe true/false: minha câmera está ligada?
+    this.onWebcamsChange = () => {}; // grade de webcams (minha + dos outros) mudou
 
     socket.on('voice:newProducer', ({ producerId, peerId, mediaType = 'mic' }) => {
       if (!this.channelId) return;
@@ -69,6 +72,11 @@ export class VoiceClient {
     // Tela que estou assistindo agora (só uma por vez). null ou:
     // { peerId, consumers: [consumerId], stream }.
     this.watching = null;
+
+    // Webcam: minha câmera + as dos outros (auto-consumidas, grade central).
+    this.webcamStream = null; // MediaStream local da minha câmera
+    this.webcamProducer = null; // meu producer de webcam
+    this.webcams = new Map(); // peerId -> { consumer, stream } (câmeras dos outros)
   }
 
   get sharing() {
@@ -82,8 +90,10 @@ export class VoiceClient {
   async join(channelId) {
     if (this.channelId) await this.leave();
 
-    const { rtpCapabilities } = await request('voice:join', { channelId });
+    const { rtpCapabilities, videoBitrate } = await request('voice:join', { channelId });
     this.channelId = channelId;
+    // Bitrate de vídeo definido no servidor (.env); usado por tela e webcam.
+    this.videoBitrate = videoBitrate || { min: 2e6, max: 20e6, start: 5e6 };
 
     this.device = new Device();
     await this.device.load({ routerRtpCapabilities: rtpCapabilities });
@@ -104,9 +114,10 @@ export class VoiceClient {
 
   async leave() {
     if (!this.channelId) return;
-    // Encerra compartilhamento e visualização de tela antes de derrubar a call.
+    // Encerra compartilhamento, visualização e câmera antes de derrubar a call.
     this.stopScreenShare();
     this.stopWatching();
+    this.stopWebcam();
     try {
       await request('voice:leave');
     } catch {
@@ -360,6 +371,19 @@ export class VoiceClient {
       await this._consume(producerId).catch((e) => console.warn(e));
       return;
     }
+    if (mediaType === 'webcam') {
+      // Webcam é auto-consumida: todos veem na grade central.
+      try {
+        const consumer = await this._consumeProducer(producerId);
+        const stream = new MediaStream([consumer.track]);
+        this.webcams.set(peerId, { consumer, stream });
+        consumer.on('trackended', () => this._removeWebcam(peerId));
+        this.onWebcamsChange();
+      } catch (e) {
+        console.warn(e);
+      }
+      return;
+    }
     // screen-video / screen-audio
     const entry = this.availableScreens.get(peerId) || {
       peerId,
@@ -373,6 +397,12 @@ export class VoiceClient {
   }
 
   _onProducerClosed(producerId, peerId) {
+    // Webcam de outro peer encerrada.
+    const cam = this.webcams.get(peerId);
+    if (cam && cam.consumer.producerId === producerId) {
+      this._removeWebcam(peerId);
+      return;
+    }
     // Atualiza a lista de telas disponíveis.
     const entry = this.availableScreens.get(peerId);
     if (entry) {
@@ -390,6 +420,19 @@ export class VoiceClient {
   _onPeerLeft(peerId) {
     if (this.availableScreens.delete(peerId)) this.onScreensChange();
     if (this.watching && this.watching.peerId === peerId) this.stopWatching();
+    this._removeWebcam(peerId);
+  }
+
+  _removeWebcam(peerId) {
+    const cam = this.webcams.get(peerId);
+    if (!cam) return;
+    try {
+      cam.consumer.close();
+    } catch {
+      /* já fechado */
+    }
+    this.webcams.delete(peerId);
+    this.onWebcamsChange();
   }
 
   /** Consome um producer e devolve o consumer já retomado (fluxo pause→resume). */
@@ -440,24 +483,12 @@ export class VoiceClient {
     });
 
     const videoTrack = this.screenStream.getVideoTracks()[0];
-    // "motion" instrui o encoder a priorizar fluidez (fps) em vez de detalhe.
-    // Sem isso, o padrão de tela é "detail" → cai para ~1 fps quando a taxa de
-    // bits aperta. Combinado com maxBitrate alto e degradationPreference,
-    // mantém o vídeo fluido numa rede local.
+    // "motion" prioriza fluidez (fps) em vez de detalhe.
     videoTrack.contentHint = 'motion';
-    // Prefere H264 (encoder de hardware) para não afogar a CPU; cai para o
-    // codec padrão (VP8) se o navegador não expuser H264.
-    const h264 = this.device.rtpCapabilities.codecs.find(
-      (c) => c.mimeType.toLowerCase() === 'video/h264'
-    );
     this.screenProducers.video = await this.sendTransport.produce({
       track: videoTrack,
       appData: { mediaType: 'screen-video' },
-      ...(h264 ? { codec: h264 } : {}),
-      // LAN: bitrate generoso p/ manter nitidez em alta resolução.
-      encodings: [{ maxBitrate: 20_000_000 }],
-      codecOptions: { videoGoogleStartBitrate: 10000, videoGoogleMinBitrate: 5000 },
-      degradationPreference: 'maintain-framerate',
+      ...this._videoProduceParams(),
     });
     // Quando o usuário clica em "Parar de compartilhar" na barra nativa do navegador.
     videoTrack.addEventListener('ended', () => this.stopScreenShare());
@@ -494,6 +525,114 @@ export class VoiceClient {
     }
     socket.emit('voice:state', { sharing: false });
     this.onShareStateChange(false);
+  }
+
+  /**
+   * Parâmetros de produção de vídeo compartilhados por tela e webcam:
+   * prefere H264 (encoder de hardware; fallback VP8) e aplica o bitrate vindo
+   * do servidor (.env). `videoGoogle*Bitrate` é em kbps.
+   */
+  _videoProduceParams() {
+    const h264 = this.device.rtpCapabilities.codecs.find(
+      (c) => c.mimeType.toLowerCase() === 'video/h264'
+    );
+    const b = this.videoBitrate;
+    return {
+      ...(h264 ? { codec: h264 } : {}),
+      encodings: [{ maxBitrate: b.max }],
+      codecOptions: {
+        videoGoogleStartBitrate: Math.round(b.start / 1000),
+        videoGoogleMinBitrate: Math.round(b.min / 1000),
+      },
+      degradationPreference: 'maintain-framerate',
+    };
+  }
+
+  // ---- webcam ----
+
+  get camOn() {
+    return !!this.webcamProducer;
+  }
+
+  _camConstraints() {
+    // ideal 60 (não trava em 30); câmeras que só fazem 30 caem para 30.
+    const video = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60, max: 60 } };
+    if (this.videoDeviceId) video.deviceId = { exact: this.videoDeviceId };
+    return { video, audio: false };
+  }
+
+  async _getCamStream() {
+    try {
+      return await navigator.mediaDevices.getUserMedia(this._camConstraints());
+    } catch (err) {
+      // Câmera escolhida sumiu/indisponível: cai para a padrão.
+      if (this.videoDeviceId) {
+        console.warn('Câmera selecionada indisponível, usando a padrão:', err);
+        this.videoDeviceId = null;
+        return navigator.mediaDevices.getUserMedia(this._camConstraints());
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Troca a câmera. Se estiver ligada, substitui a track do producer ao vivo
+   * (sem reconectar). Desligada, só guarda para o próximo start.
+   */
+  async setVideoDevice(deviceId) {
+    this.videoDeviceId = deviceId || null;
+    localStorage.setItem('voice.videoDeviceId', this.videoDeviceId || '');
+    if (!this.webcamProducer) return;
+
+    const newStream = await this._getCamStream();
+    const newTrack = newStream.getVideoTracks()[0];
+    newTrack.contentHint = 'motion';
+    await this.webcamProducer.replaceTrack({ track: newTrack });
+    newTrack.addEventListener('ended', () => this.stopWebcam());
+
+    if (this.webcamStream) this.webcamStream.getTracks().forEach((t) => t.stop());
+    this.webcamStream = newStream;
+    this.onWebcamsChange(); // atualiza o preview local na grade
+  }
+
+  /** Liga a câmera e publica como producer de vídeo (todos veem, auto-consume). */
+  async startWebcam() {
+    if (!this.connected) throw new Error('Entre em um canal de voz para ligar a câmera.');
+    if (this.camOn) return;
+
+    this.webcamStream = await this._getCamStream();
+    const videoTrack = this.webcamStream.getVideoTracks()[0];
+    videoTrack.contentHint = 'motion';
+    this.webcamProducer = await this.sendTransport.produce({
+      track: videoTrack,
+      appData: { mediaType: 'webcam' },
+      ...this._videoProduceParams(),
+    });
+    videoTrack.addEventListener('ended', () => this.stopWebcam());
+
+    socket.emit('voice:state', { cam: true });
+    this.onCamStateChange(true);
+    this.onWebcamsChange();
+  }
+
+  stopWebcam() {
+    if (!this.camOn && !this.webcamStream) return;
+    if (this.webcamProducer) {
+      request('voice:closeProducer', { producerId: this.webcamProducer.id }).catch(() => {});
+      try {
+        this.webcamProducer.close();
+      } catch {
+        /* já fechado */
+      }
+      this.webcamProducer = null;
+    }
+    if (this.webcamStream) {
+      this.webcamStream.getTracks().forEach((t) => t.stop());
+      this.webcamStream = null;
+    }
+    socket.emit('voice:state', { cam: false });
+    this.onCamStateChange(false);
+    this.onWebcamsChange();
   }
 
   /** Assiste à tela de um peer. Só uma tela por vez: fecha a anterior. */

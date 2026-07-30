@@ -21,6 +21,7 @@ export function initSettings() {
   const overlay = document.getElementById('settings-overlay');
   const closeBtn = document.getElementById('settings-close');
   const micSel = document.getElementById('sel-mic');
+  const camSel = document.getElementById('sel-cam');
   const outSel = document.getElementById('sel-out');
   const outRow = document.getElementById('settings-out-row');
   const hint = document.getElementById('settings-hint');
@@ -104,6 +105,14 @@ export function initSettings() {
       await micTest.setOutput(outSel.value || null);
     } catch (err) {
       hint.textContent = 'Falha ao trocar a saída: ' + err.message;
+    }
+  });
+
+  camSel.addEventListener('change', async () => {
+    try {
+      await voiceClient.setVideoDevice(camSel.value || null);
+    } catch (err) {
+      hint.textContent = 'Falha ao trocar a câmera: ' + err.message;
     }
   });
 
@@ -206,6 +215,12 @@ export function initSettings() {
       devices.filter((d) => d.kind === 'audioinput'),
       voiceClient.inputDeviceId,
       'Microfone padrão'
+    );
+    fill(
+      camSel,
+      devices.filter((d) => d.kind === 'videoinput'),
+      voiceClient.videoDeviceId,
+      'Câmera padrão'
     );
     if (canPickOutput) {
       fill(

@@ -1,6 +1,7 @@
 import { mediasoupServer } from '../../mediasoup/index.js';
 import { getChannel } from '../../database/repositories/channels.js';
 import * as state from '../state.js';
+import { config } from '../../../config/index.js';
 
 const roomName = (channelId) => `voice:${channelId}`;
 
@@ -45,7 +46,10 @@ export function registerVoiceHandlers(io, socket) {
       io.to(roomName(channelId)).emit('voice:sound', { sound: 'join' });
 
       broadcastPresence();
-      return { rtpCapabilities: room.rtpCapabilities };
+      return {
+        rtpCapabilities: room.rtpCapabilities,
+        videoBitrate: config.mediasoup.videoBitrate,
+      };
     })(data)
   );
 
@@ -179,8 +183,8 @@ export function registerVoiceHandlers(io, socket) {
     })(data)
   );
 
-  // Estado de voz reportado pelo cliente (mute/deaf/voice-activity/sharing).
-  socket.on('voice:state', ({ muted, deaf, speaking, sharing } = {}) => {
+  // Estado de voz reportado pelo cliente (mute/deaf/voice-activity/sharing/cam).
+  socket.on('voice:state', ({ muted, deaf, speaking, sharing, cam } = {}) => {
     const presence = state.getPresence(socket.id);
     if (!presence || !presence.voiceChannelId) return;
     const partial = {};
@@ -188,6 +192,7 @@ export function registerVoiceHandlers(io, socket) {
     if (typeof deaf === 'boolean') partial.deaf = deaf;
     if (typeof speaking === 'boolean') partial.speaking = speaking;
     if (typeof sharing === 'boolean') partial.sharing = sharing;
+    if (typeof cam === 'boolean') partial.cam = cam;
     state.setVoiceState(socket.id, partial);
     broadcastPresence();
   });

@@ -33,6 +33,17 @@ function detectLanIp() {
 
 const LAN_IP = process.env.ANNOUNCED_IP || detectLanIp();
 
+// --- Bitrate de vídeo (tela e webcam) --------------------------------------
+// Configurável via .env em Mbps. Vale para o compartilhamento de tela e para a
+// webcam; o servidor envia estes valores ao cliente no join. Em LAN dá pra ser
+// generoso; reduza VIDEO_MAX_MBPS em redes mais apertadas.
+const MBPS = 1_000_000;
+const VIDEO_BITRATE = {
+  min: (Number(process.env.VIDEO_MIN_MBPS) || 2) * MBPS,
+  max: (Number(process.env.VIDEO_MAX_MBPS) || 20) * MBPS,
+  start: (Number(process.env.VIDEO_START_MBPS) || 5) * MBPS,
+};
+
 // --- TLS / HTTPS -----------------------------------------------------------
 // O microfone (getUserMedia) só é liberado pelo navegador em "secure context":
 // https:// ou localhost. Servindo por IP de LAN em http:// a voz nunca sai.
@@ -80,6 +91,9 @@ export const config = {
     // Quantos workers criar. Cada worker é um subprocesso C++ isolado.
     // Um por núcleo é o padrão recomendado; limitamos para não exagerar.
     numWorkers: Math.min(Number(process.env.MEDIASOUP_WORKERS) || os.cpus().length, os.cpus().length),
+
+    // Bitrate de vídeo (bps) enviado ao cliente no join; usado por tela e webcam.
+    videoBitrate: VIDEO_BITRATE,
 
     worker: {
       logLevel: process.env.MEDIASOUP_LOG_LEVEL || 'warn',
@@ -138,11 +152,10 @@ export const config = {
       enableUdp: true,
       enableTcp: true,
       preferUdp: true,
-      // LAN: banda não é gargalo. Valores altos evitam que o SFU limite a
-      // taxa do compartilhamento de tela (o que derrubava o framerate p/ ~1fps).
-      // Overridable via env p/ redes mais restritas.
-      initialAvailableOutgoingBitrate: Number(process.env.RTC_INITIAL_BITRATE) || 20000000,
-      maxIncomingBitrate: Number(process.env.RTC_MAX_INCOMING_BITRATE) || 25000000,
+      // LAN: banda não é gargalo. Alinhado ao teto de vídeo do .env (com folga)
+      // para o SFU não limitar tela/webcam (o que derrubava o framerate p/ ~1fps).
+      initialAvailableOutgoingBitrate: VIDEO_BITRATE.max,
+      maxIncomingBitrate: Math.round(VIDEO_BITRATE.max * 1.25),
     },
   },
 };

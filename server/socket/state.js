@@ -5,7 +5,7 @@
 const bySocket = new Map(); // socketId -> presence
 
 function defaultVoice() {
-  return { muted: false, deaf: false, speaking: false, sharing: false };
+  return { muted: false, deaf: false, speaking: false, sharing: false, cam: false };
 }
 
 export function addPresence(socketId, user) {

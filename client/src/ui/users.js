@@ -34,6 +34,7 @@ export function renderUsers() {
       p.voice.muted ? el('span', { class: 'mini-icon', title: 'Mutado' }, icon('micOff')) : null,
       p.voice.deaf ? el('span', { class: 'mini-icon', title: 'Ensurdecido' }, icon('headphones')) : null,
       p.voice.sharing ? el('span', { class: 'mini-icon sharing', title: 'Compartilhando a tela' }, icon('screen')) : null,
+      p.voice.cam ? el('span', { class: 'mini-icon sharing', title: 'Câmera ligada' }, icon('video')) : null,
       me?.isAdmin && !isSelf ? adminMenu(p) : null,
     ]);
     // Botão direito: ajustar volume de voz/efeitos dessa pessoa (menos você mesmo).
