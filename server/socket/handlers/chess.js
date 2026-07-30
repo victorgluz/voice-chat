@@ -172,7 +172,7 @@ export function registerChessHandlers(io, socket) {
 }
 
 function publicInvite(invite) {
-  return { id: invite.id, channelId: invite.channelId, hostName: invite.hostName };
+  return { id: invite.id, channelId: invite.channelId, hostName: invite.hostName, hostSocketId: invite.hostSocketId };
 }
 
 function closeInvite(io, id, reason) {
