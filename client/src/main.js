@@ -42,7 +42,7 @@ function boot(loginData) {
   });
 
   document.getElementById('app').classList.remove('hidden');
-  document.getElementById('server-name').textContent = loginData.settings.server_name || 'Discord Lan';
+  document.getElementById('server-name').textContent = loginData.settings.server_name || 'LOCALL';
 
   setupSelfPanel();
   initSettings();

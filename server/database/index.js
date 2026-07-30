@@ -74,7 +74,7 @@ function seedDefaults() {
   const upsertSetting = db.prepare(
     'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING'
   );
-  upsertSetting.run('server_name', 'Discord Lan');
+  upsertSetting.run('server_name', 'LOCALL');
 }
 
 export default { initDatabase, getDb };
