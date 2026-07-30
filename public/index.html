@@ -105,7 +105,7 @@
             <button id="attach-remove" type="button" class="icon-btn" title="Remover anexo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
           </div>
           <div class="composer-row">
-            <button id="attach-btn" type="button" class="icon-btn" title="Anexar arquivo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+            <button id="attach-btn" type="button" class="icon-btn" title="Adicionar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
             <input id="attach-input" type="file" hidden />
             <textarea id="composer-input" rows="1" placeholder="Mensagem"></textarea>
             <button type="submit" class="icon-btn send" title="Enviar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg></button>
@@ -192,6 +192,75 @@
         <div id="settings-hint" class="settings-hint"></div>
 
         <button id="btn-logout" type="button" class="btn-logout">Sair da conta</button>
+      </div>
+    </div>
+
+    <!-- Modal de jogos -->
+    <div id="games-overlay" class="modal-overlay hidden">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Jogos">
+        <div class="modal-head">
+          <h2 id="games-title">Jogos</h2>
+          <button id="games-close" class="icon-btn" title="Fechar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+
+        <!-- Lista de jogos -->
+        <div id="games-grid" class="games-grid">
+          <button id="game-tile-chess" type="button" class="game-tile">
+            <span class="game-tile-icon">♞</span>
+            <span class="game-tile-name">Xadrez</span>
+          </button>
+        </div>
+
+        <!-- Escolha de modo (após clicar num jogo) -->
+        <div id="games-mode" class="games-mode hidden">
+          <button id="mode-bot" type="button" class="mode-option">
+            <span class="mode-option-title">Contra o bot</span>
+            <span class="mode-option-sub">Jogue sozinho contra o computador (Stockfish)</span>
+          </button>
+          <button id="mode-online" type="button" class="mode-option">
+            <span class="mode-option-title">Multiplayer</span>
+            <span class="mode-option-sub">Jogue contra alguém conectado no servidor</span>
+          </button>
+          <button id="mode-back" type="button" class="btn-secondary">Voltar</button>
+        </div>
+
+        <!-- Aguardando par (fila multiplayer) -->
+        <div id="games-waiting" class="games-waiting hidden">
+          <div class="games-spinner"></div>
+          <span class="games-waiting-text">Aguardando outro jogador entrar…</span>
+          <button id="waiting-cancel" type="button" class="btn-secondary">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overlay do jogo de xadrez -->
+    <div id="chess-overlay" class="modal-overlay hidden">
+      <div class="modal-card chess-card" role="dialog" aria-modal="true" aria-label="Xadrez">
+        <div class="modal-head">
+          <h2>Xadrez</h2>
+          <button id="chess-close" class="icon-btn" title="Fechar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+
+        <div class="chess-status-row">
+          <span id="chess-status" class="chess-status"></span>
+          <button id="chess-new" type="button" class="btn-secondary">Novo jogo</button>
+          <button id="chess-resign" type="button" class="btn-secondary hidden">Desistir</button>
+        </div>
+
+        <div class="chess-layout">
+          <div id="chess-board" class="chess-board"></div>
+
+          <div class="chess-themes">
+            <div class="theme-group">
+              <h3>Tabuleiro</h3>
+              <div id="board-theme-list" class="theme-swatch-list"></div>
+            </div>
+            <div class="theme-group">
+              <h3>Peças</h3>
+              <div id="piece-theme-list" class="theme-swatch-list"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

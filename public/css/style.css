@@ -898,6 +898,211 @@ textarea, input { font-family: inherit; }
 .mention-ac-item:hover { background: var(--bg-hover); }
 .mention-ac-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ---------- Menu do botão "+" (composer) ---------- */
+.attach-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 170px;
+  background: var(--bg-mid);
+  border: 1px solid var(--bg-darkest);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.attach-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+}
+.attach-menu-row:hover { background: var(--bg-hover); }
+.attach-menu-icon { display: flex; color: var(--text-muted); }
+.attach-menu-icon .icon { width: 18px; height: 18px; }
+
+/* ---------- Modal de jogos ---------- */
+.games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.game-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 10px;
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+  transition: background 0.1s, transform 0.05s;
+}
+.game-tile:hover { background: var(--bg-hover); }
+.game-tile:active { transform: scale(0.97); }
+.game-tile-icon { font-size: 32px; line-height: 1; }
+.game-tile-name { font-size: 13px; font-weight: 600; color: var(--text); }
+
+/* Seletor de modo (bot / online) */
+.games-mode { display: flex; flex-direction: column; gap: 10px; }
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+  text-align: left;
+  transition: background 0.1s;
+}
+.mode-option:hover { background: var(--bg-hover); }
+.mode-option-title { font-size: 15px; font-weight: 600; color: var(--text-bright); }
+.mode-option-sub { font-size: 12px; color: var(--text-muted); }
+.games-mode .btn-secondary { align-self: flex-start; margin-top: 2px; }
+
+/* Aguardando par na fila multiplayer */
+.games-waiting { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px 12px; }
+.games-waiting-text { color: var(--text); font-size: 14px; }
+.games-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 4px solid var(--bg-light);
+  border-top-color: var(--accent);
+  animation: games-spin 0.9s linear infinite;
+}
+@keyframes games-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Xadrez ---------- */
+#chess-overlay .chess-card { width: 720px; max-width: 94vw; }
+.chess-status-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.chess-status { font-size: 14px; color: var(--text); font-weight: 600; }
+
+.chess-layout { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+
+.chess-board {
+  position: relative;
+  width: min(64vh, 440px);
+  max-width: 100%;
+  aspect-ratio: 1;
+  flex: none;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+.chess-squares {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+}
+.chess-square { border: none; padding: 0; position: relative; }
+.chess-square.light { background: var(--sq-light, #ebecd0); }
+.chess-square.dark { background: var(--sq-dark, #779556); }
+.chess-square.selected { outline: 3px solid var(--accent); outline-offset: -3px; z-index: 1; }
+.chess-square.in-check { box-shadow: inset 0 0 0 4px var(--red); }
+.chess-square.move-hint::after {
+  content: '';
+  position: absolute;
+  width: 26%;
+  height: 26%;
+  top: 37%;
+  left: 37%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.22);
+}
+.chess-square.move-hint-capture::after {
+  content: '';
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  border: 4px solid rgba(0, 0, 0, 0.28);
+}
+
+.chess-pieces { position: absolute; inset: 0; pointer-events: none; }
+.chess-piece {
+  position: absolute;
+  width: 12.5%;
+  height: 12.5%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: min(9vh, 52px);
+  line-height: 1;
+  transition: left 0.22s ease, top 0.22s ease, opacity 0.15s, transform 0.15s;
+  user-select: none;
+}
+.chess-piece.piece-w {
+  color: var(--piece-w-fill, #fdfdfd);
+  -webkit-text-stroke: 1.5px var(--piece-w-stroke, #1a1a1a);
+  text-stroke: 1.5px var(--piece-w-stroke, #1a1a1a);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.chess-piece.piece-b {
+  color: var(--piece-b-fill, #1a1a1a);
+  -webkit-text-stroke: 1px var(--piece-b-stroke, #1a1a1a);
+  text-stroke: 1px var(--piece-b-stroke, #1a1a1a);
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+.chess-piece.piece-captured { opacity: 0; transform: scale(0.4); }
+
+/* ---------- Painel de temas ---------- */
+.chess-themes { display: flex; flex-direction: column; gap: 14px; width: 180px; flex: none; }
+.theme-group h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 6px; }
+.theme-swatch-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.theme-swatch {
+  width: 52px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  border: 2px solid transparent;
+  padding: 0;
+}
+.theme-swatch.active { border-color: var(--accent); }
+.theme-swatch-half { flex: 1; }
+
+.piece-theme-swatch {
+  width: 52px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--bg-dark);
+  border: 2px solid transparent;
+  padding: 0;
+  font-size: 20px;
+}
+.piece-theme-swatch.active { border-color: var(--accent); }
+
+.promo-picker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 6px;
+  background: var(--bg-mid);
+  border: 1px solid var(--bg-darkest);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.6);
+  z-index: 5;
+}
+.promo-choice {
+  width: 48px;
+  height: 48px;
+  font-size: 30px;
+  border-radius: 8px;
+  background: var(--bg-dark);
+  color: var(--text-bright);
+}
+.promo-choice:hover { background: var(--bg-hover); }
+
 /* ---------- Responsivo ---------- */
 @media (max-width: 900px) {
   #members { display: none; }

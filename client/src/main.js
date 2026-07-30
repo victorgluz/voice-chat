@@ -8,6 +8,8 @@ import { initSettings } from './ui/settings.js';
 import { initSoundboard, renderSounds } from './ui/soundboard.js';
 import { initScreenShare, renderScreenList } from './ui/screen-share.js';
 import { initVideoGrid, renderVideoGrid } from './ui/video-grid.js';
+import { initGames, onMatchFound } from './ui/games.js';
+import { initChessGame, applyRemoteMove, handleChessGameOver } from './ui/chess-game.js';
 import { showError, showInfo } from './ui/dialog.js';
 import { voiceClient } from './voice/voice-client.js';
 import { initials } from './util/dom.js';
@@ -52,6 +54,8 @@ function boot(loginData) {
   initScreenShare();
   initVideoGrid();
   initChat();
+  initGames();
+  initChessGame();
 
   const firstText = loginData.channels.text[0];
   if (firstText) setActiveChannel(firstText.id);
@@ -89,6 +93,10 @@ function registerSocketEvents() {
   });
   socket.on('chat:updated', updateMessage);
   socket.on('chat:deleted', ({ id }) => removeMessage(id));
+
+  socket.on('chess:matchFound', onMatchFound);
+  socket.on('chess:move', applyRemoteMove);
+  socket.on('chess:gameOver', handleChessGameOver);
 
   socket.on('voice:sound', ({ sound }) => voiceClient.playNotification(sound));
 

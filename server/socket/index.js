@@ -5,6 +5,7 @@ import { registerChatHandlers } from './handlers/chat.js';
 import { registerVoiceHandlers } from './handlers/voice.js';
 import { registerAdminHandlers } from './handlers/admin.js';
 import { registerSoundboardHandlers } from './handlers/soundboard.js';
+import { registerChessHandlers } from './handlers/chess.js';
 
 export function initSocket(httpServer) {
   const io = new Server(httpServer, {
@@ -20,10 +21,12 @@ export function initSocket(httpServer) {
     registerChatHandlers(io, socket);
     registerAdminHandlers(io, socket);
     registerSoundboardHandlers(io, socket);
+    const chess = registerChessHandlers(io, socket);
     registerPresenceHandlers(io, socket);
 
     socket.on('disconnect', () => {
       voice.cleanup();
+      chess.cleanup();
       state.removePresence(socket.id);
       io.emit('presence:update', state.listPresence());
     });

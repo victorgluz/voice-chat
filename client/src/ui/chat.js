@@ -4,6 +4,8 @@ import { el, clear, initials, formatTime } from '../util/dom.js';
 import { renderMarkdown } from '../util/markdown.js';
 import { icon } from '../util/icons.js';
 import { showError } from './dialog.js';
+import { openAttachMenu } from './attach-menu.js';
+import { openGamesModal } from './games.js';
 
 let pendingAttachment = null;
 const loaded = new Map(); // id -> message (para resolver respostas)
@@ -14,7 +16,12 @@ export function initChat() {
   const attachInput = document.getElementById('attach-input');
   const attachBtn = document.getElementById('attach-btn');
 
-  attachBtn.addEventListener('click', () => attachInput.click());
+  attachBtn.addEventListener('click', () =>
+    openAttachMenu(attachBtn, {
+      onMedia: () => attachInput.click(),
+      onGames: () => openGamesModal(),
+    })
+  );
   attachInput.addEventListener('change', () => handleAttach(attachInput.files?.[0]));
 
   document.getElementById('reply-cancel').addEventListener('click', cancelReply);
