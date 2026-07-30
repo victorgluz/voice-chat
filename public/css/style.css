@@ -833,6 +833,71 @@ textarea, input { font-family: inherit; }
 .dialog-message { color: var(--text); line-height: 1.45; word-break: break-word; }
 .dialog-actions { display: flex; justify-content: flex-end; }
 
+/* ---------- Usuários offline (lista lateral) ---------- */
+.member.offline { opacity: 0.45; }
+.member.offline .avatar { filter: grayscale(1); }
+
+/* ---------- Menções (@) ---------- */
+/* Realce da menção dentro da mensagem. */
+.mention {
+  background: rgba(88, 101, 242, 0.18);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 600;
+}
+.mention-self { background: rgba(88, 101, 242, 0.28); }
+
+/* Mensagem em que EU fui mencionado. */
+.message.mentioned {
+  background: rgba(88, 101, 242, 0.08);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Badge de menções não lidas no canal. */
+.mention-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Autocomplete de @menção acima do composer. */
+.composer { position: relative; }
+.mention-autocomplete {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(100% + 4px);
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--bg-dark);
+  border: 1px solid var(--bg-darkest);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  z-index: 40;
+}
+.mention-ac-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mention-ac-item.active,
+.mention-ac-item:hover { background: var(--bg-hover); }
+.mention-ac-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---------- Responsivo ---------- */
 @media (max-width: 900px) {
   #members { display: none; }

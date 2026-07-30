@@ -2,6 +2,7 @@ import * as users from '../../database/repositories/users.js';
 import { listChannels } from '../../database/repositories/channels.js';
 import { getAllSettings } from '../../database/repositories/settings.js';
 import { listSounds } from '../../database/repositories/sounds.js';
+import { listUnreadMentions } from '../../database/repositories/messages.js';
 import * as state from '../state.js';
 import { cleanName, cleanAvatar } from '../../util/sanitize.js';
 import { verifyToken } from '../../util/auth.js';
@@ -33,10 +34,13 @@ export function registerPresenceHandlers(io, socket) {
         settings: getAllSettings(),
         sounds: listSounds(),
         presence: state.listPresence(),
+        users: users.listUsers(),
+        mentions: listUnreadMentions(user.id),
       };
 
       if (typeof cb === 'function') cb({ data: payloadOut });
       io.emit('presence:update', state.listPresence());
+      io.emit('users:update', users.listUsers());
     } catch (err) {
       if (typeof cb === 'function') cb({ error: err.message });
     }
@@ -56,6 +60,7 @@ export function registerPresenceHandlers(io, socket) {
 
       if (typeof cb === 'function') cb({ data: { name: user.name } });
       io.emit('presence:update', state.listPresence());
+      io.emit('users:update', users.listUsers());
     } catch (err) {
       if (typeof cb === 'function') cb({ error: err.message });
     }
@@ -77,6 +82,7 @@ export function registerPresenceHandlers(io, socket) {
 
       if (typeof cb === 'function') cb({ data: { avatar: user.avatar } });
       io.emit('presence:update', state.listPresence());
+      io.emit('users:update', users.listUsers());
     } catch (err) {
       if (typeof cb === 'function') cb({ error: err.message });
     }

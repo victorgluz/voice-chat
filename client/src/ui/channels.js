@@ -1,4 +1,4 @@
-import { getState, presenceInVoice } from '../state.js';
+import { getState, presenceInVoice, unreadMentions } from '../state.js';
 import { request } from '../socket.js';
 import { el, clear, initials } from '../util/dom.js';
 import { icon } from '../util/icons.js';
@@ -41,9 +41,11 @@ export function renderChannels({ onSelectText, onJoinVoice }) {
   }
 
   function channelRow(channel, { active, onClick }) {
+    const unread = unreadMentions(channel.id);
     return el('div', { class: `channel-row${active ? ' active' : ''}`, onClick }, [
       el('span', { class: 'channel-icon' }, channel.icon),
       el('span', { class: 'channel-name' }, channel.name),
+      unread ? el('span', { class: 'mention-badge', title: `${unread} menção(ões)` }, String(unread)) : null,
       me?.isAdmin ? deleteBtn(channel.type, channel.id) : null,
     ]);
   }

@@ -47,6 +47,14 @@ export function countUsers() {
   return getDb().prepare('SELECT COUNT(*) AS c FROM users').get().c;
 }
 
+/** Todos os usuários cadastrados (para a lista lateral e resolução de @menções). */
+export function listUsers() {
+  return getDb()
+    .prepare('SELECT * FROM users ORDER BY name COLLATE NOCASE ASC')
+    .all()
+    .map(toUser);
+}
+
 /** Contas de fato registradas (com e-mail). Usado para eleger o 1º admin. */
 export function countRegisteredUsers() {
   return getDb().prepare('SELECT COUNT(*) AS c FROM users WHERE email IS NOT NULL').get().c;

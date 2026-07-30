@@ -1,7 +1,9 @@
 import * as messages from '../../database/repositories/messages.js';
 import { getChannel } from '../../database/repositories/channels.js';
+import { listUsers } from '../../database/repositories/users.js';
 import * as state from '../state.js';
 import { cleanText } from '../../util/sanitize.js';
+import { extractMentions } from '../../util/mentions.js';
 
 /** Valida os metadados de anexo enviados pelo cliente (o arquivo em si já
  *  foi validado no upload HTTP; aqui garantimos o formato). */
@@ -53,16 +55,30 @@ export function registerChatHandlers(io, socket) {
         if (target && target.channelId === channelId) validReply = replyTo;
       }
 
+      // Resolve @menções (exceto o próprio autor) contra os usuários cadastrados.
+      const mentions = extractMentions(text, listUsers()).filter((id) => id !== user.id);
+
       const message = messages.createMessage({
         channelId,
         userId: user.id,
         content: text,
         replyTo: validReply,
         attachment: att,
+        mentions,
       });
 
       io.emit('chat:message', message);
       return message;
+    })(data)
+  );
+
+  // Cliente informa que viu as mensagens mencionadas (marca como lidas).
+  socket.on('mentions:read', (data, cb) =>
+    ack(cb, async ({ messageIds } = {}) => {
+      const user = me();
+      if (!user) throw new Error('Não autenticado.');
+      messages.markMentionsRead(user.id, messageIds);
+      return { ok: true };
     })(data)
   );
 

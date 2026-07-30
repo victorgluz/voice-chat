@@ -1,15 +1,61 @@
 import { randomUUID } from 'node:crypto';
 import { getDb } from '../index.js';
 
-export function createMessage({ channelId, userId, content, replyTo = null, attachment = null }) {
+export function createMessage({ channelId, userId, content, replyTo = null, attachment = null, mentions = [] }) {
   const db = getDb();
   const id = randomUUID();
   const now = Date.now();
   db.prepare(
-    `INSERT INTO messages (id, channel_id, user_id, content, reply_to, attachment, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, channelId, userId, content, replyTo, attachment ? JSON.stringify(attachment) : null, now);
+    `INSERT INTO messages (id, channel_id, user_id, content, reply_to, attachment, mentions, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    channelId,
+    userId,
+    content,
+    replyTo,
+    attachment ? JSON.stringify(attachment) : null,
+    mentions.length ? JSON.stringify(mentions) : null,
+    now
+  );
+  // Registra as menções (não lidas) para badges/notificação persistente.
+  if (mentions.length) addMentions(id, channelId, mentions, now);
   return getMessage(id);
+}
+
+/** Insere linhas de menção (uma por usuário mencionado). */
+export function addMentions(messageId, channelId, userIds, createdAt) {
+  const db = getDb();
+  const stmt = db.prepare(
+    `INSERT OR IGNORE INTO mentions (message_id, user_id, channel_id, created_at)
+     VALUES (?, ?, ?, ?)`
+  );
+  const tx = db.transaction((ids) => {
+    for (const uid of ids) stmt.run(messageId, uid, channelId, createdAt);
+  });
+  tx(userIds);
+}
+
+/** Menções ainda não lidas de um usuário (para badges no login). */
+export function listUnreadMentions(userId) {
+  return getDb()
+    .prepare(
+      `SELECT message_id AS messageId, channel_id AS channelId, created_at AS createdAt
+       FROM mentions WHERE user_id = ? AND read = 0
+       ORDER BY created_at ASC`
+    )
+    .all(userId);
+}
+
+/** Marca como lidas as menções do usuário para as mensagens informadas. */
+export function markMentionsRead(userId, messageIds) {
+  if (!messageIds?.length) return;
+  const db = getDb();
+  const stmt = db.prepare('UPDATE mentions SET read = 1 WHERE user_id = ? AND message_id = ?');
+  const tx = db.transaction((ids) => {
+    for (const mid of ids) stmt.run(userId, mid);
+  });
+  tx(messageIds);
 }
 
 export function getMessage(id) {
@@ -74,6 +120,7 @@ function toMessage(row) {
     content: row.content,
     replyTo: row.reply_to,
     attachment: row.attachment ? JSON.parse(row.attachment) : null,
+    mentions: row.mentions ? JSON.parse(row.mentions) : [],
     editedAt: row.edited_at,
     deleted: row.deleted === 1,
     createdAt: row.created_at,
