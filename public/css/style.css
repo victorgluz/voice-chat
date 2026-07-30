@@ -963,7 +963,7 @@ textarea, input { font-family: inherit; }
 @keyframes games-spin { to { transform: rotate(360deg); } }
 
 /* ---------- Xadrez ---------- */
-#chess-overlay .chess-card { width: 720px; max-width: 94vw; }
+#chess-overlay .chess-card { width: 920px; max-width: 96vw; }
 .chess-status-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
 .chess-status { font-size: 14px; color: var(--text); font-weight: 600; }
 
@@ -971,7 +971,7 @@ textarea, input { font-family: inherit; }
 
 .chess-board {
   position: relative;
-  width: min(64vh, 440px);
+  width: min(80vh, 640px);
   max-width: 100%;
   aspect-ratio: 1;
   flex: none;
@@ -982,6 +982,8 @@ textarea, input { font-family: inherit; }
 .chess-squares {
   position: absolute;
   inset: 0;
+  z-index: 0; /* contém o z-index dos quadrados (ex.: .selected) — sem isso eles
+                 "escapam" e cobrem .chess-pieces, que fica logo acima */
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(8, 1fr);
@@ -989,8 +991,9 @@ textarea, input { font-family: inherit; }
 .chess-square { border: none; padding: 0; position: relative; }
 .chess-square.light { background: var(--sq-light, #ebecd0); }
 .chess-square.dark { background: var(--sq-dark, #779556); }
-.chess-square.selected { outline: 3px solid var(--accent); outline-offset: -3px; z-index: 1; }
+.chess-square.selected { background: #aad4f5; z-index: 1; }
 .chess-square.in-check { box-shadow: inset 0 0 0 4px var(--red); }
+.chess-square.marked { background: rgba(235, 62, 62, 0.25); }
 .chess-square.move-hint::after {
   content: '';
   position: absolute;
@@ -1010,31 +1013,29 @@ textarea, input { font-family: inherit; }
 }
 
 .chess-pieces { position: absolute; inset: 0; pointer-events: none; }
+.chess-arrows { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
 .chess-piece {
   position: absolute;
   width: 12.5%;
   height: 12.5%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: min(9vh, 52px);
-  line-height: 1;
+  padding: 6%;
+  box-sizing: border-box;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
   transition: left 0.22s ease, top 0.22s ease, opacity 0.15s, transform 0.15s;
   user-select: none;
-}
-.chess-piece.piece-w {
-  color: var(--piece-w-fill, #fdfdfd);
-  -webkit-text-stroke: 1.5px var(--piece-w-stroke, #1a1a1a);
-  text-stroke: 1.5px var(--piece-w-stroke, #1a1a1a);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-.chess-piece.piece-b {
-  color: var(--piece-b-fill, #1a1a1a);
-  -webkit-text-stroke: 1px var(--piece-b-stroke, #1a1a1a);
-  text-stroke: 1px var(--piece-b-stroke, #1a1a1a);
-  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.15);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4));
 }
 .chess-piece.piece-captured { opacity: 0; transform: scale(0.4); }
+.chess-piece.piece-lifted { opacity: 0; transition: none; }
+.chess-piece-ghost {
+  z-index: 10;
+  transition: none !important;
+  pointer-events: none;
+  transform: scale(1.08);
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+}
 
 /* ---------- Painel de temas ---------- */
 .chess-themes { display: flex; flex-direction: column; gap: 14px; width: 180px; flex: none; }
@@ -1053,21 +1054,6 @@ textarea, input { font-family: inherit; }
 .theme-swatch.active { border-color: var(--accent); }
 .theme-swatch-half { flex: 1; }
 
-.piece-theme-swatch {
-  width: 52px;
-  height: 40px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  background: var(--bg-dark);
-  border: 2px solid transparent;
-  padding: 0;
-  font-size: 20px;
-}
-.piece-theme-swatch.active { border-color: var(--accent); }
-
 .promo-picker {
   position: absolute;
   top: 50%;
@@ -1083,14 +1069,18 @@ textarea, input { font-family: inherit; }
   z-index: 5;
 }
 .promo-choice {
-  width: 48px;
-  height: 48px;
-  font-size: 30px;
+  width: 64px;
+  height: 64px;
   border-radius: 8px;
-  background: var(--bg-dark);
+  background-color: var(--bg-dark);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 70%;
   color: var(--text-bright);
+  padding: 6px;
+  box-sizing: border-box;
 }
-.promo-choice:hover { background: var(--bg-hover); }
+.promo-choice:hover { background-color: var(--bg-hover); }
 
 /* Card de convite de xadrez no chat (estilo "activity" — clicável por qualquer
    um vendo o canal, cada convite é uma instância própria). */
